@@ -15,6 +15,10 @@ oauth = SpotifyOAuth(
         scope='user-library-read playlist-modify-private playlist-modify-public',
         cache_handler = CacheFileHandler())
 
+def spotify_client(oauth):
+        spotify_client = Spotify(auth_manager=oauth)
+        return spotify_client
+
 
     
 

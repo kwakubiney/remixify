@@ -15,8 +15,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.urls import re_path
+import debug_toolbar
+
+import re
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include("remixify.urls")),
+    path('__debug__/', include(debug_toolbar.urls)),
+    path('celery-progress/', include('celery_progress.urls')),  # the endpoint is configurable
 ]
