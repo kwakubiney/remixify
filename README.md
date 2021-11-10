@@ -1,4 +1,4 @@
-# Remixify -  Creates a new Spotify playlist of remixes of songs in your favourite Spotify playlist !.
+# Remixify -  Creates a new Spotify playlist of remixes of songs in your favourite Spotify playlist....
 
 
 ## Setting up
