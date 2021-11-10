@@ -8,7 +8,7 @@ from .auth import oauth
 
 def home(request):
     url = oauth.get_authorize_url()
-    return render(request, "home.html" , {"url":url})
+    return render(request, "home.html" , {"url" : url})
     
 def callback(request):
     if request.GET.get("code"):
@@ -22,13 +22,6 @@ def index(request):
     
 def main(request):
     if request.method == 'POST':
-        url = request.POST.get("url")
-    playlists = get_playlist(url)
-    task = create_remix.delay(playlists)
-    context = {'task_id': task.task_id}
-    return render(request, "results.html", context)
-    
-
-
-    
-
+        url = request.POST.get("url") #include in celery task later
+    result = create_remix.delay(url)
+    return render(request, "results.html", context =  {'task_id': result.task_id})

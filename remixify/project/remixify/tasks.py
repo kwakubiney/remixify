@@ -1,6 +1,4 @@
 from celery import shared_task
-from spotipy import Spotify
-from spotipy import SpotifyException , SpotifyOauthError
 import re
 from .auth import spotify_client, oauth
 from celery_progress.backend import ProgressRecorder
@@ -10,6 +8,8 @@ def get_playlist(url):
     pattern = re.compile("(\(.*\))")
     if url_pattern.match(url):
         playlist_id = url_pattern.match(url).group("playlist_id")
+    else:
+        raise ValueError("Expecting a Spotify playlist URL. Try again.")
     track_details ={}
     tracks = []
     items = []
@@ -38,19 +38,41 @@ def get_playlist(url):
       
     return track_details
 
+def chunker(array):
+    [array[i:i+100] for i in range(len(array))[::100]]
+    
 @shared_task(bind=True)
-def create_remix(self, tracks):
+def create_remix(self, url):
+    tracks = get_playlist(url)
     progress_recorder = ProgressRecorder(self)
+    sp = spotify_client(oauth)
     remix = {}
+    details = {}
     for index, key in enumerate(tracks):
         try:
-            data = spotify_client(oauth).search(f"{key} Remix", type="track", limit=1)
-            if 0 < len(data["tracks"]["items"]):
-                element = data["tracks"]["items"][0]["artists"][0]["name"]
-                if (f"{key}".lower() in data["tracks"]["items"][0]["name"].lower()) and data["tracks"]["items"][0]["name"].lower().startswith(f"{key}".lower()):
-                        remix[f"{data['tracks']['items'][0]['id']}"] = data["tracks"]["items"][0]["name"]
+            data = sp.search(f"{key} Remix", type="track", limit=1)
+            element = data["tracks"]["items"][0]["artists"][0]["name"]
+            if (f"{key}".lower() in data["tracks"]["items"][0]["name"].lower()) and data["tracks"]["items"][0]["name"].lower().startswith(f"{key}".lower()):
+                remix[f"{data['tracks']['items'][0]['id']}"] = data["tracks"]["items"][0]["name"]
             else:
                 continue
         except IndexError:
             continue
-    return remix
+        finally:
+            progress_recorder.set_progress(index + 1, len(tracks))
+    user_id = sp.me()["id"]
+    playlist = sp.user_playlist_create(user_id, name = tracks["playlist_name"], description="Remixed by Remixify!")
+    details["user_id"] = user_id
+    details["playlist_id"] = playlist["id"]
+    user_id = details["user_id"]
+    playlist_id = details["playlist_id"]
+    track_id = [x for x in remix]
+    if len(track_id) > 100:
+        new_track_id = chunker(track_id)
+        for x in new_track_id:
+            sp.user_playlist_add_tracks(user_id, playlist_id, new_track_id)
+    else:
+        sp.user_playlist_add_tracks(user_id, playlist_id, track_id)
+        playlist_details = sp.user_playlist(user_id, playlist_id)
+    return playlist_details["external_urls"]["spotify"]
+    

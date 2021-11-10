@@ -5,9 +5,25 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- <script src="{% static 'celery_progress/celery_progress.js' %}"></script> -->
     <title>Document</title>
+    <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
 </head>
+
 <body>
     <h1>loading..................................</h1>
+    <div class='progress-wrapper'>
+        <div id='progress-bar' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
+      </div>
+      <div id="progress-bar-message">Waiting for progress to start...</div>
+
+        <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        var progressUrl = "{% url 'celery_progress:task_status' task_id %}";
+        CeleryProgressBar.initProgressBar(progressUrl);
+      });
+        </script>
+
+    <div id="celery-result"></div>
 </body>
 </html>
