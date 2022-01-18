@@ -1,4 +1,4 @@
-"""project URL Configuration
+"""main URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/3.2/topics/http/urls/
@@ -14,16 +14,8 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
-from django.conf import settings
-from django.urls import re_path
-import debug_toolbar
-
-import re
+from django.urls import path
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include("remixify.urls")),
-    path('__debug__/', include(debug_toolbar.urls)),
-    path('celery-progress/', include('celery_progress.urls')),  # the endpoint is configurable
 ]
