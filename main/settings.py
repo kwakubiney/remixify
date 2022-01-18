@@ -22,7 +22,7 @@ SITE_ID=2
 
 SOCIALACCOUNT_PROVIDERS = {
     "spotify": {
-        "SCOPE": ["user-library-read", "user-top-read" , "user-follow-read"],
+        "SCOPE": ["user-library-read playlist-modify-private playlist-modify-public playlist-read-collaborative playlist-read-private user-follow-modify"],
     }}
 
 
@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.spotify',
     'debug_toolbar',
+    'django_celery_results'
 ]
 
 MIDDLEWARE = [
@@ -133,3 +134,10 @@ LOGIN_REDIRECT_URL = "/"
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+CELERY_BROKER_URL = "redis://127.0.0.1:6379"
+CELERY_ACCEPT_CONTENT = ["application/json"]
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_BACKEND = "django-db"
+CELERY_TRACK_STARTED = True
+CELERY_CACHE_BACKEND = 'django-cache'

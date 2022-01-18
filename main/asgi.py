@@ -14,3 +14,7 @@ from django.core.asgi import get_asgi_application
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings')
 
 application = get_asgi_application()
+
+from .celery import app as celery_app
+
+__all__ = ('celery_app',)

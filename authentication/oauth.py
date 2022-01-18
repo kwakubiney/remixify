@@ -18,8 +18,8 @@ class SparisonCacheHandler(CacheHandler):
         token_info["access_token"] = self.spotify_object.token
         token_info["refresh_token"] = self.spotify_object.token_secret
         token_info["expires_at"] = unix(self.spotify_object.expires_at)
-        token_info["scope"] = "user-library-read"
-
+        token_info["scope"] = 'user-library-read playlist-modify-private playlist-modify-public playlist-read-collaborative playlist-read-private user-follow-modify'
+        
         return token_info
 
     def save_token_to_cache(self, token_info):
@@ -30,13 +30,12 @@ class SparisonCacheHandler(CacheHandler):
         self.spotify_object.token = token_info["access_token"]
         self.spotify_object.token_secret = token_info["refresh_token"]
         self.spotify_object.expires_at = deunix(token_info["expires_at"])
-        self.spotify_object.scope = token_info["scope"]
+        
         
         
 oauth = SpotifyOAuth(
         client_id=config("SPOTIPY_CLIENT_ID"),
         client_secret=config("SPOTIPY_CLIENT_SECRET"),
         redirect_uri= config("REDIRECT_URI"),
-        scope="user-library-read",
         cache_handler= SparisonCacheHandler(SocialToken.objects.filter(app__name="Spotify").first()))
     
