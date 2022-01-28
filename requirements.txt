@@ -22,7 +22,7 @@ python-dateutil==2.8.2
 python-decouple==3.5
 python-dotenv==0.19.0
 pytz==2021.3
-redis==3.5.3
+redis==4.1.2
 requests==2.26.0
 six==1.16.0
 spotipy==2.19.0
