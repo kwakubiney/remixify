@@ -2,6 +2,7 @@ from celery import shared_task
 import re
 from authentication.oauth import oauth
 from spotipy import Spotify
+from celery_progress.backend import ProgressRecorder
 
 def get_playlist(url):
     url_pattern = re.compile(r"https:\/\/open.spotify.com/(user\/.+\/)?playlist/(?P<playlist_id>.+)")
@@ -44,7 +45,8 @@ def create_remix(self, url):
     sp = Spotify(auth_manager = oauth)
     track_id = []
     details = {}
-    for key in tracks:
+    progress_recorder = ProgressRecorder(self)
+    for index, key in enumerate(tracks):
         try:
             data = sp.search(f"{key} remix", type="track", limit=1)
             if (f"{key}".lower() in data["tracks"]["items"][0]["name"].lower()) and data["tracks"]["items"][0]["name"].lower().startswith(f"{key}".lower()):
@@ -53,6 +55,8 @@ def create_remix(self, url):
                 continue
         except IndexError:
             continue
+        finally:
+               progress_recorder.set_progress(index + 1, len(tracks))
     user_id = sp.me()["id"]
     playlist = sp.user_playlist_create(user_id, name = tracks["playlist_name"], description="Remixed by Remixify!")
     details["user_id"] = user_id

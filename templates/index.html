@@ -10,10 +10,13 @@
     <title>Document</title>
 </head>
 <body>
+    <p>Remixify</p>
     <form action="/results/" method="post" value="url">
         {% csrf_token %}
         <input placeholder = "Enter Url" type="text" name="url">
         <button type="submit">Submit</button>
     </form>
+
+    <a href= "/accounts/logout/">Logout</a>
 </body>
 </html>
