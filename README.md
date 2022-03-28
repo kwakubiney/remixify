@@ -21,7 +21,7 @@ The server can be run locally but you will need to register your own Spotify app
     - `DB_USER`
     - `DB_HOST` 
 
-Example can be found in `.env.example` in the root directory:
+Example can be found in `.env_local` in the root directory:
 
 ## Dependencies
 
