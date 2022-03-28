@@ -1,4 +1,6 @@
-# creates a new Spotify playlist of remixes of songs in your favourite Spotify playlist <3
+# creates a new Spotify playlist with remixes of songs in your favourite Spotify playlist 😏
+
+![ezgif-4-2f0ff42471](https://user-images.githubusercontent.com/71296367/160491259-2a115f42-2090-41b2-8d67-bf1bdac5750b.gif)
 
 ## Setting up
 
