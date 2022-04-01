@@ -9,11 +9,9 @@ function handleSubmit(){
         })
         .then(response => response.json())
         .then(data => {
-            // console.log('Success:', data);
             progressUrl = `/celery-progress/${data.task_id}`;
             return progressUrl
         }).then(progressUrl => CeleryProgressBar.initProgressBar(progressUrl))})}
 
 document.addEventListener("DOMContentLoaded", handleSubmit)
-
 
