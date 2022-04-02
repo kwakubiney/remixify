@@ -20,11 +20,10 @@ DATABASES = {
         'PORT': config('DB_PORT'),
 
     }
-
 }
 
 ALLOWED_HOSTS = list(config("ALLOWED_HOSTS"))
 CELERY_BROKER_URL = config("REDIS_URL")
 CELERY_RESULT_BACKEND = config("REDIS_URL")
-CELERY_CACHE_BACKEND = config("CELERY_CACHE_BACKEND")
+
 
