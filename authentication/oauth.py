@@ -6,7 +6,7 @@ from spotipy import SpotifyOAuth
 from decouple import config
 
 
-class SparisonCacheHandler(CacheHandler):
+class RemixifyCacheHandler(CacheHandler):
 
     def __init__(self, spotify_object):
         self.spotify_object = spotify_object
@@ -32,10 +32,10 @@ class SparisonCacheHandler(CacheHandler):
         self.spotify_object.expires_at = deunix(token_info["expires_at"])
         
         
-        
-oauth = SpotifyOAuth(
+def oauth_factory():
+    return SpotifyOAuth(
         client_id=config("SPOTIPY_CLIENT_ID"),
         client_secret=config("SPOTIPY_CLIENT_SECRET"),
         redirect_uri= config("REDIRECT_URI"),
-        cache_handler= SparisonCacheHandler(SocialToken.objects.filter(app__name="Spotify").first()))
+        cache_handler= RemixifyCacheHandler(SocialToken.objects.filter(app__name="Spotify").first()))
     
