@@ -7,10 +7,7 @@ from decouple import config
 
 def main():
     """Run administrative tasks."""
-    if config("REMIXIFY") == "prod":
-        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings.prod_settings')
-    else:
-        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings.dev_settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings.dev_settings')
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
