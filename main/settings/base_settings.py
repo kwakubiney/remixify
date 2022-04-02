@@ -1,27 +1,14 @@
 from pathlib import Path
 import os
-from pickle import TRUE
 from decouple import config
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 SECRET_KEY = config('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
 
 SITE_ID=2
-
 SOCIALACCOUNT_PROVIDERS = {
     "spotify": {
         "SCOPE": ["user-library-read playlist-modify-private playlist-modify-public playlist-read-collaborative playlist-read-private user-follow-modify"],
@@ -79,31 +66,9 @@ TEMPLATES = [
     },
 ]
 
+
 WSGI_APPLICATION = 'main.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/3.2/ref/settings/#databases
-
-DATABASES = {
-
-    'default': {
-
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-
-        'NAME': config('DB_NAME'),
-
-        'USER': config('DB_USER'),
-
-        'PASSWORD': config('DB_PASSWORD'),
-
-        'HOST': config('DB_HOST'),
-
-        'PORT': config('DB_PORT'),
-
-    }
-
-}
 
 
 # Password validation
@@ -145,16 +110,17 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [(os.path.join(
     BASE_DIR, "main/static"))]
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 SOCIALACCOUNT_STORE_TOKENS = True
 LOGIN_REDIRECT_URL = "/"
 SOCIALACCOUNT_LOGIN_ON_GET = True
+SOCIALACCOUNT_LOGOUT_ON_GET = True
 
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-CELERY_BROKER_URL = "redis://127.0.0.1:6379"
 CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TASK_SERIALIZER = "json"
