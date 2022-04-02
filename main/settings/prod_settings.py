@@ -4,7 +4,7 @@ from decouple import config
 
 
 DATABASES = {'default' : dj_database_url.config(conn_max_age=600, ssl_require=True)}
-DEBUG = False
+DEBUG = True
 ROOT_URLCONF = 'main.urls'
 MIDDLEWARE.append('whitenoise.middleware.WhiteNoiseMiddleware')
 ALLOWED_HOSTS = ['https://remixify-007.herokuapp.com', 'remixify-007.herokuapp.com']
