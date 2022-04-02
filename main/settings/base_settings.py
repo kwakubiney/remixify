@@ -8,7 +8,7 @@ SECRET_KEY = config('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 
-SITE_ID=config("SITE_ID")
+SITE_ID=int(config("SITE_ID"))
 SOCIALACCOUNT_PROVIDERS = {
     "spotify": {
         "SCOPE": ["user-library-read playlist-modify-private playlist-modify-public playlist-read-collaborative playlist-read-private user-follow-modify"],
