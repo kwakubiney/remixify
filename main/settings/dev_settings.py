@@ -26,3 +26,4 @@ DATABASES = {
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 CELERY_BROKER_URL = "redis://127.0.0.1:6379"
+CELERY_RESULT_BACKEND = "django-db"
