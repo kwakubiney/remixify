@@ -1,3 +1,4 @@
+from .base_settings import *
 from decouple import config
 
 DEBUG = True

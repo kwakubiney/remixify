@@ -2,11 +2,15 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
+from decouple import config
 
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings.dev_settings')
+    if config("REMIXIFY") == "prod":
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings.prod_settings')
+    else:
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings.dev_settings')
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
