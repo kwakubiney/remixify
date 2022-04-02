@@ -8,5 +8,3 @@ ROOT_URLCONF = 'main.urls'
 MIDDLEWARE.append('whitenoise.middleware.WhiteNoiseMiddleware')
 ALLOWED_HOSTS = ['https://remixify-007.herokuapp.com', 'remixify-007.herokuapp.com']
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-CELERY_BROKER_URL = config("REDIS_URL")
-CELERY_RESULT_BACKEND = config("REDIS_URL")

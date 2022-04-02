@@ -5,7 +5,7 @@ from django.conf import settings
 from decouple import config
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings.dev_settings")
-app = Celery("main" , broker= settings.REDIS_URL , backend=settings.REDIS_URL)
+app = Celery("main" , broker= settings.CELERY_BROKER_URL , backend=settings.CELERY_RESULT_BACKEND)
 app.config_from_object("django.conf.settings", namespace="CELERY")
 
 app.autodiscover_tasks()
