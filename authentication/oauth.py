@@ -37,5 +37,5 @@ def oauth_factory():
         client_id=config("SPOTIPY_CLIENT_ID"),
         client_secret=config("SPOTIPY_CLIENT_SECRET"),
         redirect_uri= config("REDIRECT_URI"),
-        cache_handler= RemixifyCacheHandler(SocialToken.objects.filter(app__name="Spotify").first()))
+        cache_handler= RemixifyCacheHandler(SocialToken.objects.get(id=1)))
     
