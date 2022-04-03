@@ -4,7 +4,8 @@ from spotipy.oauth2 import SpotifyOAuth
 from authentication.timestamp import unix, deunix
 from spotipy import SpotifyOAuth
 from decouple import config
-
+from spotipy import Spotify
+from django.contrib.auth.models import User
 
 class RemixifyCacheHandler(CacheHandler):
 
@@ -30,12 +31,15 @@ class RemixifyCacheHandler(CacheHandler):
         self.spotify_object.token = token_info["access_token"]
         self.spotify_object.token_secret = token_info["refresh_token"]
         self.spotify_object.expires_at = deunix(token_info["expires_at"])
-        
-        
-def oauth_factory():
+
+      
+def oauth_factory(user_id):
     return SpotifyOAuth(
         client_id=config("SPOTIPY_CLIENT_ID"),
         client_secret=config("SPOTIPY_CLIENT_SECRET"),
         redirect_uri= config("REDIRECT_URI"),
-        cache_handler= RemixifyCacheHandler(SocialToken.objects.get(id=1)))
+        cache_handler= RemixifyCacheHandler(SocialToken.objects.filter(account__user= User.objects.get(id=user_id), account__provider= "spotify").first()))
     
+
+def spotify_client(oauth):
+    return Spotify(auth_manager=oauth)

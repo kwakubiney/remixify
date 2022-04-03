@@ -1,11 +1,12 @@
 from celery import shared_task
 import re
-from authentication.oauth import oauth_factory
 from spotipy import Spotify
 from celery_progress.backend import ProgressRecorder
+from authentication.oauth import oauth_factory, spotify_client
 
-def get_playlist(url):
+def get_playlist(url, user):
     url_pattern = re.compile(r"https:\/\/open.spotify.com/(user\/.+\/)?playlist/(?P<playlist_id>.+)")
+    oauth = oauth_factory(user)
     pattern = re.compile("(\(.*\))")
     if url_pattern.match(url):
         playlist_id = url_pattern.match(url).group("playlist_id")
@@ -14,14 +15,15 @@ def get_playlist(url):
     track_details ={}
     tracks = []
     items = []
-    data = Spotify(auth_manager = oauth_factory).playlist(playlist_id)
+    sp = spotify_client(oauth)
+    data = sp.playlist(playlist_id)
     track_details["playlist_name"] = data["name"]
     items += data["tracks"]["items"]
     next = data["tracks"]["next"]
     results = data["tracks"]
 
     while next is not None:
-        results = Spotify(auth_manager = oauth_factory).next(results)
+        results = Spotify(auth_manager = oauth).next(results)
         items.extend(results["items"])
         next = results.get("next")
 
@@ -34,15 +36,15 @@ def get_playlist(url):
             tracks.append(name)
         track_details[f"{name}"] = [artist["name"] for artist in track["artists"]]
       
-    return track_details
+    return track_details, sp
 
 def chunker(array):
     [array[i:i+100] for i in range(len(array))[::100]]
     
 @shared_task(bind=True)
-def create_remix(self, url):
-    tracks = get_playlist(url)
-    sp = Spotify(auth_manager = oauth_factory)
+def create_remix(self, url, user):
+    sp_and_track_details = get_playlist(url, user)
+    tracks, sp = sp_and_track_details[0], sp_and_track_details[1]
     track_id = []
     details = {}
     progress_recorder = ProgressRecorder(self)
