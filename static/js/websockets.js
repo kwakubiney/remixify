@@ -1,3 +1,4 @@
+ 
 class CeleryWebSocketProgressBar extends CeleryProgressBar {
 
     constructor(progressUrl, options) {

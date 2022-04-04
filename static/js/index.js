@@ -1,3 +1,5 @@
+
+   
 function handleSubmit(){
     document.querySelector("form").addEventListener("submit", function(e){
         e.preventDefault();
@@ -14,4 +16,3 @@ function handleSubmit(){
         }).then(progressUrl => CeleryProgressBar.initProgressBar(progressUrl))})}
 
 document.addEventListener("DOMContentLoaded", handleSubmit)
-
