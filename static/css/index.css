@@ -6,6 +6,7 @@
 html, body
 {
     height: 100vh;
+    overflow-y: hidden;
 }
 
 .container{
@@ -23,6 +24,7 @@ html, body
     flex-direction: column;
     justify-content: space-between;
     align-items: center;
+    text-align: center;
 }
 
 #big-banner-head {
@@ -112,4 +114,10 @@ a{
 
 #progress-bar-message{
     font-size: 20px;
+}
+
+@media(max-width: 992px){
+    .wrapper{
+        width: 90%;
+    }
 }
