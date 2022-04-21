@@ -40,3 +40,4 @@ Example can be found in `.env_local` in the root directory:
 3. Run `python manage.py runserver` to start developer server.
 
 
+Project has been hosted on Heroku and is currently available not accessible on mobile. Also, application is currently in `development mode`. More information available on https://developer.spotify.com/documentation/web-api/guides/development-extended-quota-modes/ . If interested to use my application for the mean time, send me your Spotify email via Twitter. (twitter.com/kwakubiney/)
