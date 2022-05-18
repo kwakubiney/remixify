@@ -38,10 +38,3 @@ Example can be found in `.env_local` in the root directory:
 2. Run `python manage.py runworker` to start a `celery` worker in another terminal.
 
 3. Run `python manage.py runserver` to start developer server.
-
-
-
-Project has been hosted on Heroku and is currently available on desktop but not accessible on mobile. Also, application is currently in `development mode`. More information available on https://developer.spotify.com/documentation/web-api/guides/development-extended-quota-modes/ . If you are interested in using my application for the mean time, use this dummy account. 
-
-## Username : jsooley@gmail.com
-## Password : superstore?
