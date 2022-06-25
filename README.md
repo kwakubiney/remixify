@@ -38,5 +38,3 @@ Example can be found in `.env_local` in the root directory:
 2. Run `python manage.py runworker` to start a `celery` worker in another terminal.
 
 3. Run `python manage.py runserver` to start developer server.
-
-
