@@ -2,16 +2,13 @@ from celery import shared_task
 import re
 from spotipy import Spotify
 from celery_progress.backend import ProgressRecorder
+from tasks.helpers import chunker, get_playlist_id
 from authentication.oauth import oauth_factory, spotify_client
 
 def get_playlist(url, user):
-    url_pattern = re.compile(r"https:\/\/open.spotify.com/(user\/.+\/)?playlist/(?P<playlist_id>.+)")
-    oauth = oauth_factory(user)
+    playlist_id = get_playlist_id(url)
     pattern = re.compile("(\(.*\))")
-    if url_pattern.match(url):
-        playlist_id = url_pattern.match(url).group("playlist_id")
-    else:
-        raise ValueError("Expecting a Spotify playlist URL. Try again.")
+    oauth = oauth_factory(user)
     track_details ={}
     tracks = []
     items = []
@@ -38,8 +35,7 @@ def get_playlist(url, user):
       
     return track_details, sp
 
-def chunker(array):
-    [array[i:i+100] for i in range(len(array))[::100]]
+
     
 @shared_task(bind=True)
 def create_remix(self, url, user):
