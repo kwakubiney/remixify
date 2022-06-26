@@ -1,115 +1,179 @@
-*
-{
-    box-sizing: border-box;
+/* COLOR VARIABLES */
+:root {
+  --main-bg-color: #2941ab;
+  --main-color: #1ed75ff2;
+  --secondary-color: #117a37;
 }
 
-html, body
-{
-    height: 100vh;
+/* BASIC RESET */
+*,
+*::after,
+*::before {
+  margin: 0;
+  padding: 0;
+  box-sizing: inherit;
+  font-family: "Inter", sans-serif;
 }
 
-.container{
-    height: 100%;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+html {
+  /*
+    10 / 16 = 0.625
+    1 rem === 10px 
+    1 em === 16px
+  */
+  font-size: 62.5%;
+  /* font-family: "Inter", sans-serif; */
+  background: linear-gradient(45deg,var(--secondary-color), var(--main-bg-color), var(--secondary-color));
+  color: var(--main-color);
 }
 
-.wrapper {
-    width: 70%;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
+body {
+  box-sizing: border-box;
+  /* rem is always measured relative to the document’s root font-size. */
+  /* e.g. padding: 3rem; /* 30px */
+
+  height: 100vh;
 }
 
-#big-banner-head {
-    padding-top: 70px;
-    padding-bottom: 25px;
-    color: black;
-    line-height: 1.1
+h1 {
+  font-size: 10rem;
 }
 
-.big-text {
-    font-size: 3rem;
-    line-height: 1.3em;
-    font-weight: 700;
-    letter-spacing: .15rem;
+h4 {
+  font-size: 4.5rem;
+  margin: 1.5rem;
 }
 
-
-#input_container {
-    background-color: #ffffff;
-    margin-top: 10px;
-    width: 100%;
-    margin-bottom: 50px;
-    outline:black;
-    border: black;}
-
-.flex{
-    display: flex;
-    align-self: center;
-    align-items: center;}
-
-
-#input_big{
-    width: 100%;
-    height: 100%;
-    font-size: 1.2rem;
-    }
-
-#input_container * {
-    padding: 15px;
-    }
-
-
-
-#submit_btn {
-    background-color: #203551;
-    color: #ffffff;
-    border-radius: none;
-    margin: 10px;
-    padding-left: 30px;
-    padding-right: 30px;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: white;
-    text-decoration: none;
-    background-color: #1DB954;
-    display: inline-block;
-    border-radius: 10px;
-    transition: all .2s;
-    outline: none;
-    border: none;
-        
+h6, .progress-bar-message, #celery-result {
+  font-size: 2rem;
+  font-weight: 400;
+  margin: 1.5rem;
 }
 
-form{
-    width: 100%;
+a {
+  text-decoration: none;
+  outline: none;
+ 
+}
+
+button {
+  outline: none;
+  /* font-family: "Inter", sans-serif; */
+  text-transform: uppercase;
+  cursor: pointer;
+  
+  font-weight: 900;
+  padding: 1.5rem;
+  border-radius: 15rem;
+  border: none;
+  
+  margin: 6rem 0 0 0;
+  color: var(--main-color);
+  border: 0.1rem solid var(--main-color);
+  background-color: transparent;
+
+}
+
+button:active, button:focus, button:hover {
+  outline: none;
+  color: var(--main-bg-color);
+  border: 0.1rem solid var(--main-bg-color);
+  background-color:  var(--main-color);
 }
 
 
-#submit_btn:hover{
-    transform: translateY(-3px);
-    /* box-shadow: 0 10px 20px rgba(0,0,0,.2); */
+form {
+  display: flex;
+  flex-direction: column;
+
+  text-align: center;
 }
 
-#submit_btn:active {
-    transform: translateY(-1px);
-    /* box-shadow: 0 5px 10px rgba(0,0,0,.2); */
+form > button {
+  width: max-content;
+  align-self: center;
 }
 
-.progress-wrapper{
-    width: 100%;
+input {
+  /* font-family: "Inter", sans-serif; */
+
+  margin: 1.5rem;
+
+  padding: 1rem;
+
+  border: none;
+  border-bottom: 0.1rem solid var(--main-color);
+
+  outline: none;
+
+  font-size: 2rem;
+
+  background-color: transparent;
+
+  color: var(--main-color);
 }
 
-a{
-    color: black;
-    font-size: 20px;
+::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
+  color: var(--main-color);
+  opacity: 1; /* Firefox */
 }
 
-#progress-bar-message{
-    font-size: 20px;
+:-ms-input-placeholder { /* Internet Explorer 10-11 */
+  color: var(--main-color);
+}
+
+
+.container {
+  height: 100vh;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.progress-wrapper {
+  background-color: var(--secondary-color);
+  border-radius: 15rem;
+  margin: 3.5rem;
+}
+
+.progress-bar {
+  background-color: var(--main-color) !important;
+  /* width: 48% !important; */
+  border-radius: 15rem;
+}
+
+
+@media only screen and (max-width: 36.25em) {
+  html {
+    font-size: 50%;
+  }
+}
+
+@media only screen and (max-width: 26.85em) {
+  html {
+    font-size: 40%;
+  }
+}
+
+@media only screen and (max-width: 20.85em) {
+  html {
+    font-size: 35%;
+  }
+
+  h1 {
+    font-size: 9.5rem;
+    margin-bottom: 4rem;
+  }
+
+  h4 {
+    margin-bottom: 4rem;
+  }
+  
+  h6 {
+    font-size: 2.5rem;
+  }
 }

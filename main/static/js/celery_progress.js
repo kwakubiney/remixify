@@ -24,10 +24,10 @@ class CeleryProgressBar {
         this.pollInterval = options.pollInterval || 500;
         // Other options
         let barColorsDefault = {
-            success: '#1DB954;', //spotify green
-            error: '#dc4f63',
-            progress: "#0F9D58", //light green
-            ignored: '#7a7a7a'
+            success: '#1ed75ff2;', // spotify green
+            error: '#dc143c', // crimson
+            progress: "#1ed75ff2", // spotify green
+            ignored: '#888'
         }
 
         this.barColors = Object.assign({}, barColorsDefault, options.barColors);
