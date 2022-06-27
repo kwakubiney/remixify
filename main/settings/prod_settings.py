@@ -1,6 +1,5 @@
 from .base_settings import *
 import dj_database_url
-from decouple import config
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 

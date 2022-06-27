@@ -14,13 +14,16 @@
                     <h1 id="big-banner-head" class="big-text">
                         Remixify
                     </h1>
-                    <h1 id="big-banner-head">
-                        Convert playlists <br> to remixed versions <br> on Spotify
-                    </h1>
+                    <h6 id="big-banner-head">
+                        Convert playlists to remixed versions on Spotify
+                    </h6>
                 </header>
-                <div class="links">
-                    <a href="{% provider_login_url 'spotify' process='login' %}" class="btn">Connect with Spotify</a>
-                </div>
+
+                <a href="{% provider_login_url 'spotify' process='login' %}" class="btn">
+                  <button class="links">
+                    Connect with Spotify
+                  </button>
+                </a>
             </section>
         </div>
     </div>
