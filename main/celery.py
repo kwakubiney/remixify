@@ -4,7 +4,7 @@ from celery import Celery
 from django.conf import settings
 from decouple import config
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings.dev_settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "main.settings.dev_settings")
 app = Celery("main" ,)
 #app = Celery("main" , broker= settings.CELERY_BROKER_URL , backend=settings.CELERY_RESULT_BACKEND)
 app.config_from_object("django.conf.settings", namespace="CELERY")
