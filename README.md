@@ -23,8 +23,15 @@ The server can be run locally but you will need to register your own Spotify app
     - `DB_PORT`
     - `DB_USER`
     - `DB_HOST` 
+    - `REMIXIFY`
+    - `SITE_ID`
+    - `ALLOWED_HOSTS`
+    - `REDIS_URL`
+    - `CELERY_RESULT_BACKEND`
+    - `CELERY_CACHE_BACKEND`
 
-Example can be found in `.env_local` in the root directory:
+
+Example can be found in `.env_local.txt` in the root directory:
 
 ## Dependencies
 
@@ -35,6 +42,22 @@ Example can be found in `.env_local` in the root directory:
 ## Running
 1. To use celery workers etc, make sure you have `redis` installed on your machine. It is going to be used as a message broker to queue tasks for `celery` workers.
 
-2. Run `python manage.py runworker` to start a `celery` worker in another terminal.
+2. To enable proper login flow with `django-allauth`, create a Social Application from the admin page and choose `Spotify` as the provider,
+   fill in your client ID and secret, and choose a site for your development. Example: `http://127.0.0.1:8000`
 
-3. Run `python manage.py runserver` to start developer server.
+3. Run `python manage.py runworker` to start a `celery` worker in another terminal.
+   # note : Celery is not supported on Windows so running the command above on Windows OS might not work.
+   
+   You can try to run `celery -A main worker -l info` manually from `main` directory in terminal to start workers but I cannot vouch for that 100%.
+
+4. Run `python manage.py runserver` to start developer server.
+
+## Common Error
+
+1.  `Social Matching App Query Does Not Exist`
+
+This results from improper choice of `SITE_ID` environment variable as it to be the ID of the site you created above. To find the correct site:
+ 
+- You can open Python shell and import the Site model and run a `Site.objects.all()` to help identify the ID of your site.
+  
+- `Site.objects.values_list('id', flat=True)` will give a much clearer response.

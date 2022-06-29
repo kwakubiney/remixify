@@ -1,9 +1,9 @@
-from django.shortcuts import HttpResponse
 from django.http import JsonResponse
-from authentication.oauth import oauth_factory
 from tasks.tasks import create_remix
+from django.contrib.auth.decorators import login_required
 
 
+@login_required(login_url= "home")
 def result(request):
     if request.method == 'POST':
         url = request.POST.get("url")
