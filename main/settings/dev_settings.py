@@ -9,15 +9,15 @@ DATABASES = {
 
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
 
-        'NAME': config('DB_NAME'),
+        'NAME': config('POSTGRES_NAME'),
 
-        'USER': config('DB_USER'),
+        'USER': config('POSTGRES_DB'),
 
-        'PASSWORD': config('DB_PASSWORD'),
+        'PASSWORD': config('POSTGRES_PASSWORD'),
 
-        'HOST': config('DB_HOST'),
+        'HOST': config('POSTGRES_HOST'),
 
-        'PORT': config('DB_PORT'),
+        'PORT': config('POSTGRES_PORT'),
 
     }
 }
