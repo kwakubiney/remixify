@@ -1,7 +1,7 @@
 amqp==5.1.1
 asgiref==3.5.0
 async-timeout==4.0.2
-celery==5.2.6
+celery==5.2.7
 celery-progress==0.1.2
 certifi==2021.10.8
 cffi==1.15.0
