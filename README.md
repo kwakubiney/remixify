@@ -1,4 +1,4 @@
-# Currently a WIP but here is how it looks so far :)
+# Currently a WIP.
 
 ![gif-remixify](https://user-images.githubusercontent.com/71296367/161169298-092aef1e-c8c3-4629-ad5e-704036d42d5b.gif)
 
