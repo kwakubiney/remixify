@@ -171,6 +171,16 @@ function resetPhase1() {
     elements.progressBar.style.width = '0%';
 }
 
+function resetCreateButton() {
+    elements.createBtn.disabled = false;
+    elements.createBtn.innerHTML = `
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12h14"/>
+        </svg>
+        <span>Create Playlist</span>
+    `;
+}
+
 // ============ PHASE 2: Selection ============
 
 function renderTrackSelection(result) {
@@ -630,6 +640,7 @@ async function pollCreateResult(taskId) {
             }
         } catch (error) {
             showError(error.message);
+            resetCreateButton();
         }
     };
     
@@ -720,6 +731,7 @@ function goToPhase1() {
     elements.phaseSelection.style.display = 'none';
     elements.phaseSuccess.style.display = 'none';
     resetPhase1();
+    resetCreateButton();
     elements.urlInput.value = '';
     state.tracks = [];
     state.selectedTracks.clear();

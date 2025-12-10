@@ -1,4 +1,3 @@
 release: python manage.py migrate
-web: gunicorn main.wsgi --log-file -
-celery: REMAP_SIGTERM=SIGQUIT celery -A main worker -l info
-worker: python3 manage.py runworker
+web: gunicorn main.wsgi:application --bind 0.0.0.0:$PORT --workers 2
+celery: celery -A main worker -l info --concurrency=2

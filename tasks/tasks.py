@@ -98,10 +98,8 @@ def get_confidence_level(score):
     """Convert numeric score to confidence level."""
     if score >= 70:
         return "high"
-    elif score >= 45:
-        return "medium"
     else:
-        return "low"
+        return "medium"  # Only scores >= 40 reach here (low scores filtered out)
 
 
 def get_playlist(url, user):
@@ -214,6 +212,9 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
                 
         except Exception:
             continue
+    
+    # Filter out low confidence matches (< 40) - only keep best and medium
+    candidates = [c for c in candidates if c["confidence"] >= 40]
     
     # Sort by confidence and return top candidates
     candidates.sort(key=lambda x: x["confidence"], reverse=True)
