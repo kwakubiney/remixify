@@ -14,7 +14,11 @@ const state = {
     currentTaskId: null,
     // Pagination
     currentPage: 1,
-    tracksPerPage: 10
+    tracksPerPage: 10,
+    // Audio preview
+    audioPlayer: null,
+    currentlyPlayingBtn: null,
+    previewTimeout: null
 };
 
 // DOM Elements
@@ -344,6 +348,28 @@ function createTrackCard(track, index) {
                            ${isSelected ? 'checked' : ''}
                            data-track-id="${bestMatch.id}"
                            data-track-data='${JSON.stringify(bestMatch).replace(/'/g, "&apos;")}'>
+                    ${bestMatch.preview_url ? `
+                        <button class="btn-preview" 
+                                data-preview-url="${bestMatch.preview_url}" 
+                                title="Preview track">
+                            <svg class="icon-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <polygon points="5,3 19,12 5,21"/>
+                            </svg>
+                            <svg class="icon-pause" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:none;">
+                                <rect x="6" y="4" width="4" height="16"/>
+                                <rect x="14" y="4" width="4" height="16"/>
+                            </svg>
+                        </button>
+                    ` : `
+                        <a class="btn-preview btn-spotify-link" 
+                           href="${bestMatch.spotify_url}" 
+                           target="_blank" 
+                           title="Listen on Spotify">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                            </svg>
+                        </a>
+                    `}
                     <img src="${bestMatch.album_art || '/static/img/placeholder.png'}" alt="" class="track-art">
                     <div class="track-info">
                         <span class="track-name">${escapeHtml(bestMatch.name)}</span>
@@ -369,6 +395,28 @@ function createTrackCard(track, index) {
                                        id="remix-${index}-${cidx + 1}"
                                        data-track-id="${candidate.id}"
                                        data-track-data='${JSON.stringify(candidate).replace(/'/g, "&apos;")}'>
+                                ${candidate.preview_url ? `
+                                    <button class="btn-preview btn-preview-small" 
+                                            data-preview-url="${candidate.preview_url}" 
+                                            title="Preview track">
+                                        <svg class="icon-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                            <polygon points="5,3 19,12 5,21"/>
+                                        </svg>
+                                        <svg class="icon-pause" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:none;">
+                                            <rect x="6" y="4" width="4" height="16"/>
+                                            <rect x="14" y="4" width="4" height="16"/>
+                                        </svg>
+                                    </button>
+                                ` : `
+                                    <a class="btn-preview btn-preview-small btn-spotify-link" 
+                                       href="${candidate.spotify_url}" 
+                                       target="_blank" 
+                                       title="Listen on Spotify">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                                        </svg>
+                                    </a>
+                                `}
                                 <img src="${candidate.album_art || '/static/img/placeholder.png'}" alt="" class="track-art-small">
                                 <div class="track-info">
                                     <span class="track-name">${escapeHtml(candidate.name)}</span>
@@ -405,6 +453,15 @@ function createTrackCard(track, index) {
     const radios = card.querySelectorAll('.remix-radio');
     radios.forEach(radio => {
         radio.addEventListener('change', (e) => handleAlternateSelection(e, track, index, card));
+    });
+    
+    // Preview buttons
+    const previewBtns = card.querySelectorAll('.btn-preview');
+    previewBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handlePreviewClick(btn);
+        });
     });
     
     return card;
@@ -585,9 +642,80 @@ function showSuccess(result) {
     goToPhase3();
 }
 
+// ============ Audio Preview ============
+
+function handlePreviewClick(btn) {
+    const previewUrl = btn.dataset.previewUrl;
+    
+    // Don't do anything if no preview URL
+    if (!previewUrl) {
+        return;
+    }
+    
+    // If clicking the same button that's playing, stop it
+    if (state.currentlyPlayingBtn === btn) {
+        stopPreview();
+        return;
+    }
+    
+    // Stop any currently playing preview
+    stopPreview();
+    
+    // Create audio player if it doesn't exist
+    if (!state.audioPlayer) {
+        state.audioPlayer = new Audio();
+        state.audioPlayer.volume = 0.5;
+        
+        // When audio ends, reset the button
+        state.audioPlayer.addEventListener('ended', () => {
+            stopPreview();
+        });
+        
+        // Handle errors
+        state.audioPlayer.addEventListener('error', () => {
+            stopPreview();
+        });
+    }
+    
+    // Start playing
+    state.audioPlayer.src = previewUrl;
+    state.audioPlayer.play();
+    
+    // Update button state
+    state.currentlyPlayingBtn = btn;
+    btn.classList.add('playing');
+    btn.querySelector('.icon-play').style.display = 'none';
+    btn.querySelector('.icon-pause').style.display = 'block';
+    
+    // Auto-stop after 15 seconds (Spotify previews are ~30s)
+    state.previewTimeout = setTimeout(() => {
+        stopPreview();
+    }, 15000);
+}
+
+function stopPreview() {
+    if (state.audioPlayer) {
+        state.audioPlayer.pause();
+        state.audioPlayer.currentTime = 0;
+    }
+    
+    if (state.previewTimeout) {
+        clearTimeout(state.previewTimeout);
+        state.previewTimeout = null;
+    }
+    
+    if (state.currentlyPlayingBtn) {
+        state.currentlyPlayingBtn.classList.remove('playing');
+        state.currentlyPlayingBtn.querySelector('.icon-play').style.display = 'block';
+        state.currentlyPlayingBtn.querySelector('.icon-pause').style.display = 'none';
+        state.currentlyPlayingBtn = null;
+    }
+}
+
 // ============ Navigation ============
 
 function goToPhase1() {
+    stopPreview(); // Stop any playing audio
     elements.phaseInput.style.display = 'flex';
     elements.phaseSelection.style.display = 'none';
     elements.phaseSuccess.style.display = 'none';

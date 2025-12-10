@@ -641,6 +641,58 @@
     flex-shrink: 0;
 }
 
+/* Preview Button */
+.btn-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--primary);
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(29, 185, 84, 0.3);
+}
+
+.btn-preview:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(29, 185, 84, 0.4);
+}
+
+.btn-preview.playing {
+    background: var(--primary);
+    animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+/* Spotify link button (when no preview available) */
+.btn-preview.btn-spotify-link {
+    background: #1DB954;
+    text-decoration: none;
+}
+
+.btn-preview.btn-spotify-link:hover {
+    background: #1ed760;
+    transform: scale(1.1);
+}
+
+.btn-preview-small {
+    width: 28px;
+    height: 28px;
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 2px 8px rgba(29, 185, 84, 0.3);
+    }
+    50% {
+        box-shadow: 0 2px 16px rgba(29, 185, 84, 0.6);
+    }
+}
+
 /* Confidence Badge */
 .confidence-badge {
     padding: 0.25rem 0.625rem;
