@@ -62,7 +62,10 @@ services:
       - key: DJANGO_SETTINGS_MODULE
         value: main.settings.prod_settings
       - key: DJANGO_SECRET_KEY
-        sync: false
+        fromService:
+          name: remixify
+          type: web
+          envVarKey: DJANGO_SECRET_KEY
       - key: SPOTIFY_CLIENT_ID
         sync: false
       - key: SPOTIFY_CLIENT_SECRET
