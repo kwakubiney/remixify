@@ -17,24 +17,24 @@
     <!-- Base Organic Styles -->
     <style>
         :root {
-            /* Spotify-inspired Organic Palette */
-            --background: #0d0d0d;
-            --background-elevated: #1a1a1a;
-            --foreground: #ffffff;
-            --foreground-muted: #b3b3b3;
+            /* Light Theme - Spotify Green Accents */
+            --background: #fafafa;
+            --background-elevated: #ffffff;
+            --foreground: #1a1a1a;
+            --foreground-muted: #6b7280;
             --primary: #1DB954;
             --primary-hover: #1ed760;
             --primary-muted: rgba(29, 185, 84, 0.1);
-            --primary-glow: rgba(29, 185, 84, 0.3);
-            --secondary: #535353;
-            --accent: #282828;
-            --border: #404040;
-            --destructive: #e91429;
+            --primary-glow: rgba(29, 185, 84, 0.2);
+            --secondary: #e5e7eb;
+            --accent: #f3f4f6;
+            --border: #e5e7eb;
+            --destructive: #dc2626;
             
-            /* Organic Shadows */
-            --shadow-soft: 0 4px 20px -2px rgba(29, 185, 84, 0.15);
-            --shadow-float: 0 10px 40px -10px rgba(29, 185, 84, 0.25);
-            --shadow-glow: 0 0 60px rgba(29, 185, 84, 0.2);
+            /* Organic Shadows - Softer for light theme */
+            --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.08);
+            --shadow-float: 0 10px 40px -10px rgba(29, 185, 84, 0.15);
+            --shadow-glow: 0 0 60px rgba(29, 185, 84, 0.1);
         }
         
         *, *::before, *::after {
@@ -52,7 +52,7 @@
             overflow-x: hidden;
         }
         
-        /* Organic Grain Texture Overlay */
+        /* Subtle Grain Texture Overlay */
         body::before {
             content: '';
             position: fixed;
@@ -61,7 +61,7 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-            opacity: 0.03;
+            opacity: 0.02;
             z-index: 1000;
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
         }

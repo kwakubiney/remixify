@@ -8,7 +8,7 @@
     position: fixed;
     border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
     filter: blur(80px);
-    opacity: 0.4;
+    opacity: 0.2;
     pointer-events: none;
     z-index: -1;
     animation: blob-float 20s ease-in-out infinite;
@@ -17,7 +17,7 @@
 .blob-1 {
     width: 600px;
     height: 600px;
-    background: linear-gradient(135deg, var(--primary) 0%, rgba(29, 185, 84, 0.3) 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, rgba(29, 185, 84, 0.4) 100%);
     top: -200px;
     right: -150px;
     animation-delay: 0s;
@@ -26,7 +26,7 @@
 .blob-2 {
     width: 400px;
     height: 400px;
-    background: linear-gradient(225deg, var(--primary) 0%, rgba(29, 185, 84, 0.2) 100%);
+    background: linear-gradient(225deg, var(--primary) 0%, rgba(29, 185, 84, 0.3) 100%);
     bottom: -100px;
     left: -100px;
     animation-delay: -7s;
@@ -36,7 +36,7 @@
 .blob-3 {
     width: 300px;
     height: 300px;
-    background: rgba(29, 185, 84, 0.15);
+    background: rgba(29, 185, 84, 0.2);
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -91,7 +91,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--background);
+    color: #ffffff;
     margin-bottom: 2.5rem;
     box-shadow: var(--shadow-glow);
     animation: pulse-glow 3s ease-in-out infinite;
@@ -169,7 +169,7 @@
     gap: 0.75rem;
     padding: 1rem 2.5rem;
     background: var(--primary);
-    color: var(--background);
+    color: #ffffff;
     font-family: 'Nunito', sans-serif;
     font-size: 1.1rem;
     font-weight: 700;

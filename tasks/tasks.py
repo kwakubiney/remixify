@@ -1,72 +1,337 @@
 from celery import shared_task
 import re
+from difflib import SequenceMatcher
 from spotipy import Spotify
 from celery_progress.backend import ProgressRecorder
 from tasks.helpers import chunker, get_playlist_id
 from authentication.oauth import oauth_factory, spotify_client
 
+
+def calculate_match_confidence(original_name, original_artists, remix_track):
+    """
+    Calculate a confidence score (0-100) for how well a remix matches the original.
+    
+    IMPORTANT: Only returns positive score if track contains remix keywords.
+    This ensures we only show actual remixes, not original songs.
+    
+    Factors:
+    - MUST contain "remix" or similar keyword (required)
+    - Track name similarity
+    - Artist overlap (original artist featured or credited)
+    """
+    remix_name = remix_track["name"].lower()
+    original_name_lower = original_name.lower().strip()
+    remix_artists = [a["name"].lower() for a in remix_track["artists"]]
+    original_artists_lower = [a.lower() for a in original_artists]
+    
+    score = 0
+    reasons = []
+    
+    # CRITICAL: Must contain remix keyword - this is REQUIRED
+    remix_keywords = ["remix", "remixed", "rmx", "bootleg", "rework", "flip", "vip mix", "club mix", "radio edit"]
+    has_remix_keyword = any(keyword in remix_name for keyword in remix_keywords)
+    
+    if not has_remix_keyword:
+        # Not a remix - return 0 score
+        return 0, ["not_a_remix"]
+    
+    reasons.append("is_remix")
+    score += 30  # Base score for being a remix
+    
+    # Check if this is the exact same song (not a remix of it)
+    # If the track name is almost identical and same primary artist, skip it
+    if remix_name.replace(" ", "") == original_name_lower.replace(" ", ""):
+        return 0, ["same_song"]
+    
+    # Extract core song title from remix name (before the dash/hyphen where remix info usually starts)
+    # e.g., "still - ndinga gaba remix" → "still"
+    remix_core = remix_name.split(" - ")[0].strip() if " - " in remix_name else remix_name
+    
+    # 1. Name similarity (0-35 points)
+    # Check if original name appears in remix name
+    if original_name_lower in remix_name:
+        score += 35
+        reasons.append("name_match")
+    # Check if remix core matches original name
+    elif original_name_lower == remix_core or original_name_lower in remix_core or remix_core in original_name_lower:
+        score += 35
+        reasons.append("core_name_match")
+    # Check if remix starts with the original name
+    elif remix_name.startswith(original_name_lower) or remix_core.startswith(original_name_lower):
+        score += 30
+        reasons.append("starts_with_original")
+    else:
+        # Fuzzy match - check words
+        original_words = set(original_name_lower.split())
+        remix_words = set(remix_core.split())
+        # Remove common filler words
+        filler_words = {"the", "a", "an", "of", "and", "or", "to", "in", "on", "at", "for"}
+        original_words -= filler_words
+        remix_words -= filler_words
+        
+        if original_words and remix_words:
+            overlap = len(original_words & remix_words)
+            if overlap >= len(original_words):  # All original words found
+                score += 30
+                reasons.append("full_word_match")
+            elif overlap >= 1:
+                score += 15 + (overlap * 5)  # 20-25 points based on overlap
+                reasons.append("partial_word_match")
+    
+    # 2. Artist overlap (0-25 points)
+    # Check if original artist is credited in the remix
+    artist_overlap = any(orig in " ".join(remix_artists) for orig in original_artists_lower)
+    if artist_overlap:
+        score += 25
+        reasons.append("artist_match")
+    else:
+        # Check if original artist mentioned in track name (feat. situations)
+        if any(orig in remix_name for orig in original_artists_lower):
+            score += 15
+            reasons.append("artist_in_title")
+    
+    return min(100, score), reasons
+
+
+def get_confidence_level(score):
+    """Convert numeric score to confidence level."""
+    if score >= 70:
+        return "high"
+    elif score >= 45:
+        return "medium"
+    else:
+        return "low"
+
+
 def get_playlist(url, user):
+    """Fetch playlist tracks from Spotify."""
     playlist_id = get_playlist_id(url)
-    pattern = re.compile("(\(.*\))")
+    pattern = re.compile(r"\(.*?\)")
     oauth = oauth_factory(user)
-    track_details ={}
+    track_details = {}
     tracks = []
     items = []
     sp = spotify_client(oauth)
     data = sp.playlist(playlist_id)
     track_details["playlist_name"] = data["name"]
+    track_details["playlist_image"] = data["images"][0]["url"] if data["images"] else None
     items += data["tracks"]["items"]
-    next = data["tracks"]["next"]
+    next_page = data["tracks"]["next"]
     results = data["tracks"]
 
-    while next is not None:
-        results = Spotify(auth_manager = oauth).next(results)
+    while next_page is not None:
+        results = Spotify(auth_manager=oauth).next(results)
         items.extend(results["items"])
-        next = results.get("next")
+        next_page = results.get("next")
 
     for item in items:
         track = item["track"]
         if track is not None:
             name = track["name"]
-            if pattern.search(name):
-                name = re.sub(pattern,"",name)
-            tracks.append(name)
-        track_details[f"{name}"] = [artist["name"] for artist in track["artists"]]
-      
-    return track_details, sp
-
-
+            # Clean name - remove parenthetical content for better searching
+            clean_name = re.sub(pattern, "", name).strip()
+            
+            # Remove common suffixes that pollute search (e.g., "- Bonus", "- Deluxe Edition")
+            suffix_pattern = r'\s*[-–—]\s*(bonus|deluxe|remaster(ed)?|anniversary|edition|version|extended|original|radio|single|album|live|acoustic|instrumental|explicit|clean)(\s+\w+)*\s*$'
+            clean_name = re.sub(suffix_pattern, "", clean_name, flags=re.IGNORECASE).strip()
+            
+            artists = [artist["name"] for artist in track["artists"]]
+            tracks.append({
+                "id": track["id"],  # Include track ID to exclude originals
+                "original_name": name,
+                "clean_name": clean_name,
+                "artists": artists,
+                "album_art": track["album"]["images"][0]["url"] if track["album"]["images"] else None,
+                "preview_url": track.get("preview_url"),
+                "spotify_url": track["external_urls"]["spotify"]
+            })
     
+    return track_details, tracks, sp
+
+
+def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
+    """
+    Search for remix candidates for a single track.
+    Returns multiple options with confidence scores.
+    Only returns actual remixes (tracks with remix keywords in name).
+    """
+    candidates = []
+    search_queries = [
+        f"{track['clean_name']} {track['artists'][0]} remix",
+        f"{track['clean_name']} remix",
+        f"{track['original_name']} remix",
+    ]
+    
+    seen_ids = set()
+    # Also exclude the original track if we have its ID
+    if original_track_id:
+        seen_ids.add(original_track_id)
+    
+    for query in search_queries:
+        try:
+            results = sp.search(query, type="track", limit=5)
+            for item in results["tracks"]["items"]:
+                if item["id"] not in seen_ids:
+                    seen_ids.add(item["id"])
+                    confidence, reasons = calculate_match_confidence(
+                        track["clean_name"],
+                        track["artists"],
+                        item
+                    )
+                    
+                    # Only include actual remixes (confidence > 0)
+                    # Non-remixes return 0 from calculate_match_confidence
+                    if confidence > 0:
+                        candidates.append({
+                            "id": item["id"],
+                            "name": item["name"],
+                            "artists": [a["name"] for a in item["artists"]],
+                            "album_art": item["album"]["images"][0]["url"] if item["album"]["images"] else None,
+                            "preview_url": item.get("preview_url"),
+                            "spotify_url": item["external_urls"]["spotify"],
+                            "confidence": confidence,
+                            "confidence_level": get_confidence_level(confidence),
+                            "match_reasons": reasons,
+                            "duration_ms": item["duration_ms"]
+                        })
+        except Exception:
+            continue
+    
+    # Sort by confidence and return top candidates
+    candidates.sort(key=lambda x: x["confidence"], reverse=True)
+    return candidates[:num_candidates]
+
+
+@shared_task(bind=True)
+def preview_remixes(self, url, user):
+    """
+    Phase 1: Find remix candidates for all tracks and return for user review.
+    """
+    progress_recorder = ProgressRecorder(self)
+    playlist_info, tracks, sp = get_playlist(url, user)
+    
+    preview_results = {
+        "playlist_name": playlist_info["playlist_name"],
+        "playlist_image": playlist_info.get("playlist_image"),
+        "total_tracks": len(tracks),
+        "tracks": []
+    }
+    
+    high_confidence_count = 0
+    medium_confidence_count = 0
+    low_confidence_count = 0
+    no_match_count = 0
+    
+    for index, track in enumerate(tracks):
+        # Pass original track ID to exclude it from candidates
+        candidates = find_remix_candidates(sp, track, original_track_id=track.get("id"))
+        
+        track_result = {
+            "original": {
+                "name": track["original_name"],
+                "artists": track["artists"],
+                "album_art": track["album_art"],
+                "spotify_url": track["spotify_url"]
+            },
+            "candidates": candidates,
+            "best_match": candidates[0] if candidates else None,
+            "has_high_confidence": any(c["confidence_level"] == "high" for c in candidates)
+        }
+        
+        # Count confidence levels
+        if candidates:
+            best_level = candidates[0]["confidence_level"]
+            if best_level == "high":
+                high_confidence_count += 1
+            elif best_level == "medium":
+                medium_confidence_count += 1
+            else:
+                low_confidence_count += 1
+        else:
+            no_match_count += 1
+        
+        preview_results["tracks"].append(track_result)
+        progress_recorder.set_progress(index + 1, len(tracks))
+    
+    preview_results["summary"] = {
+        "high_confidence": high_confidence_count,
+        "medium_confidence": medium_confidence_count,
+        "low_confidence": low_confidence_count,
+        "no_match": no_match_count
+    }
+    
+    return preview_results
+
+
+@shared_task(bind=True)
+def create_remix_playlist(self, user, playlist_name, selected_tracks):
+    """
+    Phase 2: Create the playlist with user-selected tracks.
+    selected_tracks is a list of Spotify track IDs.
+    """
+    progress_recorder = ProgressRecorder(self)
+    oauth = oauth_factory(user)
+    sp = spotify_client(oauth)
+    
+    user_id = sp.me()["id"]
+    
+    # Create the playlist
+    playlist = sp.user_playlist_create(
+        user_id, 
+        name=f"{playlist_name} (Remixed)", 
+        description="Remixed by Remixify! Hand-picked remix versions of your favorite tracks."
+    )
+    
+    playlist_id = playlist["id"]
+    
+    # Add tracks in chunks of 100
+    if len(selected_tracks) > 100:
+        chunks = chunker(selected_tracks)
+        for i, chunk in enumerate(chunks):
+            sp.user_playlist_add_tracks(user_id, playlist_id, chunk)
+            progress_recorder.set_progress(i + 1, len(chunks))
+    else:
+        sp.user_playlist_add_tracks(user_id, playlist_id, selected_tracks)
+        progress_recorder.set_progress(1, 1)
+    
+    playlist_details = sp.user_playlist(user_id, playlist_id)
+    
+    return {
+        "url": playlist_details["external_urls"]["spotify"],
+        "name": playlist_details["name"],
+        "track_count": len(selected_tracks)
+    }
+
+
+# Keep legacy function for backwards compatibility
 @shared_task(bind=True)
 def create_remix(self, url, user):
+    """Legacy: Direct remix creation without preview."""
     sp_and_track_details = get_playlist(url, user)
-    tracks, sp = sp_and_track_details[0], sp_and_track_details[1]
-    track_id = []
-    details = {}
+    tracks_info, tracks, sp = sp_and_track_details
+    track_ids = []
     progress_recorder = ProgressRecorder(self)
-    for index, key in enumerate(tracks):
-        try:
-            data = sp.search(f"{key} remix", type="track", limit=1)
-            if (f"{key}".lower() in data["tracks"]["items"][0]["name"].lower()) and data["tracks"]["items"][0]["name"].lower().startswith(f"{key}".lower()):
-                track_id.append(data['tracks']['items'][0]['id'])
-            else:
-                continue
-        except IndexError:
-            continue
-        finally:
-               progress_recorder.set_progress(index + 1, len(tracks))
+    
+    for index, track in enumerate(tracks):
+        candidates = find_remix_candidates(sp, track, num_candidates=1)
+        if candidates and candidates[0]["confidence_level"] in ["high", "medium"]:
+            track_ids.append(candidates[0]["id"])
+        progress_recorder.set_progress(index + 1, len(tracks))
+    
     user_id = sp.me()["id"]
-    playlist = sp.user_playlist_create(user_id, name = tracks["playlist_name"], description="Remixed by Remixify!")
-    details["user_id"] = user_id
-    details["playlist_id"] = playlist["id"]
-    user_id = details["user_id"]
-    playlist_id = details["playlist_id"]
-    if len(track_id) > 100:
-        new_track_id = chunker(track_id)
-        for x in new_track_id:
-            sp.user_playlist_add_tracks(user_id, playlist_id, x)
+    playlist = sp.user_playlist_create(
+        user_id, 
+        name=f"{tracks_info['playlist_name']} (Remixed)", 
+        description="Remixed by Remixify!"
+    )
+    
+    playlist_id = playlist["id"]
+    
+    if len(track_ids) > 100:
+        for chunk in chunker(track_ids):
+            sp.user_playlist_add_tracks(user_id, playlist_id, chunk)
     else:
-        sp.user_playlist_add_tracks(user_id, playlist_id, track_id)
+        sp.user_playlist_add_tracks(user_id, playlist_id, track_ids)
     
     playlist_details = sp.user_playlist(user_id, playlist_id)
     return playlist_details["external_urls"]["spotify"]

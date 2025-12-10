@@ -4,7 +4,6 @@
 {% block styles %}
     <link rel="stylesheet" href="{% static 'css/index.css' %}">
     <script src="{% static 'js/celery_progress.js' %}"></script>
-    <script src="{% static 'js/index.js' %}"></script>
 {% endblock %}
 
 {% block spotify %}
@@ -13,80 +12,181 @@
 <div class="blob blob-2"></div>
 
 <div class="container">
-    <div class="wrapper">
-        <!-- Brand Header -->
-        <header class="brand-header">
-            <div class="brand-mark">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
-                    <path d="M8 15C8.5 12 10.5 10 14 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    <path d="M8 12C8.5 10 10 8.5 13 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    <path d="M8 9C8.3 8 9.5 7 11.5 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Phase 1: URL Input -->
+    <div id="phase-input" class="phase-container">
+        <div class="wrapper">
+            <!-- Brand Header -->
+            <header class="brand-header">
+                <div class="brand-mark">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M8 15C8.5 12 10.5 10 14 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        <path d="M8 12C8.5 10 10 8.5 13 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        <path d="M8 9C8.3 8 9.5 7 11.5 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <span class="brand-name">Remixify</span>
+            </header>
+
+            <!-- Hero Text -->
+            <div class="hero-section">
+                <h1 class="hero-title">
+                    Relive a <span class="highlight">new experience</span><br>in seconds
+                </h1>
+                <p class="hero-subtitle">Paste your Spotify playlist URL and discover amazing remixes</p>
+            </div>
+            
+            <!-- Search Card -->
+            <div class="search-card">
+                <form id="playlist-form" class="search-form">
+                    {% csrf_token %}
+                    <div class="input-wrapper">
+                        <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="m21 21-4.35-4.35"/>
+                        </svg>
+                        <input 
+                            type="text" 
+                            name="url" 
+                            id="input_url" 
+                            placeholder="https://open.spotify.com/playlist/..."
+                            required
+                            autocomplete="off"
+                        >
+                    </div>
+                    <button type="submit" id="submit_btn" class="btn-convert">
+                        <span class="btn-text">Find Remixes</span>
+                        <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Progress Section -->
+            <div class="progress-section" id="progress-section" style="display: none;">
+                <div class="progress-wrapper">
+                    <div id="progress-bar" class="progress-bar" style="width: 0%;"></div>
+                </div>
+                <p id="progress-message" class="progress-message">Searching for remixes...</p>
+            </div>
+            
+            <!-- Feature Pills -->
+            <div class="features">
+                <div class="feature-pill">
+                    <span class="feature-icon">*</span>
+                    <span>Smart matching</span>
+                </div>
+                <div class="feature-pill">
+                    <span class="feature-icon">*</span>
+                    <span>You choose the tracks</span>
+                </div>
+                <div class="feature-pill">
+                    <span class="feature-icon">*</span>
+                    <span>Quality remixes</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Phase 2: Track Selection -->
+    <div id="phase-selection" class="phase-container" style="display: none;">
+        <div class="selection-wrapper">
+            <!-- Header -->
+            <header class="selection-header">
+                <button id="back-btn" class="btn-back">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                    <span>Back</span>
+                </button>
+                <div class="playlist-info">
+                    <img id="playlist-image" src="" alt="Playlist" class="playlist-thumb">
+                    <div>
+                        <h2 id="playlist-name" class="playlist-title"></h2>
+                        <p id="track-count" class="track-count"></p>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Summary Stats -->
+            <div class="summary-stats" id="summary-stats">
+                <div class="stat-card stat-high">
+                    <span class="stat-label">High match</span>
+                    <span class="stat-value" id="stat-high">0</span>
+                </div>
+                <div class="stat-card stat-medium">
+                    <span class="stat-label">Medium</span>
+                    <span class="stat-value" id="stat-medium">0</span>
+                </div>
+                <div class="stat-card stat-low">
+                    <span class="stat-label">Low match</span>
+                    <span class="stat-value" id="stat-low">0</span>
+                </div>
+                <div class="stat-card stat-none">
+                    <span class="stat-label">No match</span>
+                    <span class="stat-value" id="stat-none">0</span>
+                </div>
+            </div>
+
+            <!-- Bulk Actions -->
+            <div class="bulk-actions">
+                <button id="select-all-high" class="btn-bulk">Select all high matches</button>
+                <button id="select-all" class="btn-bulk">Select all</button>
+                <button id="deselect-all" class="btn-bulk btn-bulk-secondary">Deselect all</button>
+                <span class="selected-count"><span id="selected-count">0</span> tracks selected</span>
+            </div>
+
+            <!-- Pagination -->
+            <div id="pagination" class="pagination" style="display: none;">
+                <!-- Pagination controls will be inserted here -->
+            </div>
+
+            <!-- Track List -->
+            <div id="track-list" class="track-list">
+                <!-- Track cards will be inserted here -->
+            </div>
+
+            <!-- Pagination Bottom -->
+            <div id="pagination-bottom" class="pagination" style="display: none;">
+                <!-- Bottom pagination controls -->
+            </div>
+
+            <!-- Create Playlist Button -->
+            <div class="create-section">
+                <button id="create-btn" class="btn-create" disabled>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    <span>Create Playlist</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Phase 3: Success -->
+    <div id="phase-success" class="phase-container" style="display: none;">
+        <div class="wrapper success-wrapper">
+            <div class="success-icon">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22,4 12,14.01 9,11.01"/>
                 </svg>
             </div>
-            <span class="brand-name">Remixify</span>
-        </header>
-
-        <!-- Hero Text -->
-        <div class="hero-section">
-            <h1 class="hero-title">
-                Relive a <span class="highlight">new experience</span><br>in seconds
-            </h1>
-            <p class="hero-subtitle">Paste your Spotify playlist URL and watch the magic happen</p>
-        </div>
-        
-        <!-- Search Card -->
-        <div class="search-card">
-            <form id="playlist-form" action="/results/" method="POST" class="search-form">
-                {% csrf_token %}
-                <div class="input-wrapper">
-                    <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+            <h1 class="success-title">Playlist Created!</h1>
+            <p id="success-message" class="success-message"></p>
+            <div class="success-actions">
+                <a id="spotify-link" href="#" target="_blank" class="btn-spotify">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
                     </svg>
-                    <input 
-                        type="text" 
-                        name="url" 
-                        id="input_big" 
-                        placeholder="https://open.spotify.com/playlist/..."
-                        required
-                        autocomplete="off"
-                    >
-                </div>
-                <button type="submit" id="submit_btn" class="btn-convert">
-                    <span class="btn-text">Convert</span>
-                    <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <path d="M5 12h14M12 5l7 7-7 7"/>
-                    </svg>
-                </button>
-            </form>
-        </div>
-        
-        <!-- Progress Section -->
-        <div class="progress-section">
-            <div class="progress-wrapper">
-                <div id="progress-bar" class="progress-bar" style="width: 0%;"></div>
-            </div>
-            <p id="progress-bar-message" class="progress-message"></p>
-        </div>
-        
-        <!-- Result Section -->
-        <div class="result-card" id="celery-result"></div>
-        
-        <!-- Feature Pills -->
-        <div class="features">
-            <div class="feature-pill">
-                <span class="feature-icon">⚡</span>
-                <span>Lightning fast</span>
-            </div>
-            <div class="feature-pill">
-                <span class="feature-icon">🎵</span>
-                <span>Any playlist size</span>
-            </div>
-            <div class="feature-pill">
-                <span class="feature-icon">✨</span>
-                <span>Curated remixes</span>
+                    <span>Open in Spotify</span>
+                </a>
+                <button id="new-playlist-btn" class="btn-new">Create Another</button>
             </div>
         </div>
     </div>
 </div>
+
+<script src="{% static 'js/index.js' %}"></script>
 {% endblock %}
