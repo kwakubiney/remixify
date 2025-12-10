@@ -4,19 +4,75 @@
 <head>
     <title>Remixify</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
-          integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh"
-          crossorigin="anonymous">
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <meta name="description" content="Convert your Spotify playlists to remixed versions instantly">
+    
+    <!-- Google Fonts - Organic Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
-    <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,800&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- jQuery -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+    
+    <!-- Base Organic Styles -->
+    <style>
+        :root {
+            /* Spotify-inspired Organic Palette */
+            --background: #0d0d0d;
+            --background-elevated: #1a1a1a;
+            --foreground: #ffffff;
+            --foreground-muted: #b3b3b3;
+            --primary: #1DB954;
+            --primary-hover: #1ed760;
+            --primary-muted: rgba(29, 185, 84, 0.1);
+            --primary-glow: rgba(29, 185, 84, 0.3);
+            --secondary: #535353;
+            --accent: #282828;
+            --border: #404040;
+            --destructive: #e91429;
+            
+            /* Organic Shadows */
+            --shadow-soft: 0 4px 20px -2px rgba(29, 185, 84, 0.15);
+            --shadow-float: 0 10px 40px -10px rgba(29, 185, 84, 0.25);
+            --shadow-glow: 0 0 60px rgba(29, 185, 84, 0.2);
+        }
+        
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        html, body {
+            height: 100%;
+            font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--background);
+            color: var(--foreground);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        /* Organic Grain Texture Overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0.03;
+            z-index: 1000;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+    </style>
+    
     {% block styles %}
     {% endblock %}
 </head>

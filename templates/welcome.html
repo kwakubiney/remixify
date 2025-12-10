@@ -7,21 +7,51 @@
 {% endblock %}
 
 {% block spotify %}
-    <div class = "container">
+    <!-- Ambient Organic Blobs -->
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+    
+    <div class="container">
         <div class="wrapper">
-            <section class="mainbod">
-                <header class="heading">
-                    <h1 id="big-banner-head" class="big-text">
-                        Remixify
-                    </h1>
-                    <h1 id="big-banner-head">
-                        Convert playlists <br> to remixed versions <br> on Spotify
-                    </h1>
-                </header>
-                <div class="links">
-                    <a href="{% provider_login_url 'spotify' process='login' %}" class="btn">Connect with Spotify</a>
-                </div>
+            <!-- Logo/Brand Mark -->
+            <div class="brand-mark">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M8 15C8.5 12 10.5 10 14 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M8 12C8.5 10 10 8.5 13 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M8 9C8.3 8 9.5 7 11.5 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            </div>
+            
+            <section class="hero-content">
+                <h1 class="brand-title">Remixify</h1>
+                <p class="tagline">
+                    Transform your playlists<br>
+                    into <span class="highlight">remixed</span> experiences
+                </p>
+                <p class="description">
+                    Discover new versions of your favorite tracks. 
+                    One click transforms your entire playlist into remix heaven.
+                </p>
             </section>
+            
+            <div class="cta-section">
+                <a href="{% provider_login_url 'spotify' process='login' %}" class="btn-organic">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                    </svg>
+                    <span>Connect with Spotify</span>
+                </a>
+                <p class="trust-note">Free • Secure • No spam</p>
+            </div>
+            
+            <!-- Floating Music Notes Decoration -->
+            <div class="floating-elements">
+                <span class="note note-1">♪</span>
+                <span class="note note-2">♫</span>
+                <span class="note note-3">♪</span>
+            </div>
         </div>
     </div>
 {% endblock %}

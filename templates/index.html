@@ -8,27 +8,85 @@
 {% endblock %}
 
 {% block spotify %}
+<!-- Ambient Organic Blobs -->
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+
 <div class="container">
     <div class="wrapper">
-        <!-- Big banner text -->
-        <div class="">
-            <h1 id="big-banner-head" class="big-text">
-                Relive a new experience in seconds ...
+        <!-- Brand Header -->
+        <header class="brand-header">
+            <div class="brand-mark">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M8 15C8.5 12 10.5 10 14 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M8 12C8.5 10 10 8.5 13 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M8 9C8.3 8 9.5 7 11.5 6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <span class="brand-name">Remixify</span>
+        </header>
+
+        <!-- Hero Text -->
+        <div class="hero-section">
+            <h1 class="hero-title">
+                Relive a <span class="highlight">new experience</span><br>in seconds
             </h1>
+            <p class="hero-subtitle">Paste your Spotify playlist URL and watch the magic happen</p>
         </div>
-        <!-- Search bar -->
-        <div id="input_container" class="flex shadow_custom">
-            <form id="input_container" action ="/results/" class="flex shadow_custom" method="POST" value="url">
-                 {% csrf_token %}
-                <input placeholder="Enter Spotify playlist url." id="input_big" type="text" name="url">
-                <button type="submit" class="big-button-text" id="submit_btn">Convert</button>
-            <form>
+        
+        <!-- Search Card -->
+        <div class="search-card">
+            <form id="playlist-form" action="/results/" method="POST" class="search-form">
+                {% csrf_token %}
+                <div class="input-wrapper">
+                    <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+                    </svg>
+                    <input 
+                        type="text" 
+                        name="url" 
+                        id="input_big" 
+                        placeholder="https://open.spotify.com/playlist/..."
+                        required
+                        autocomplete="off"
+                    >
+                </div>
+                <button type="submit" id="submit_btn" class="btn-convert">
+                    <span class="btn-text">Convert</span>
+                    <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </button>
+            </form>
         </div>
-        <div class='progress-wrapper'>
-            <div id='progress-bar' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
+        
+        <!-- Progress Section -->
+        <div class="progress-section">
+            <div class="progress-wrapper">
+                <div id="progress-bar" class="progress-bar" style="width: 0%;"></div>
+            </div>
+            <p id="progress-bar-message" class="progress-message"></p>
         </div>
-        <div id="progress-bar-message"></div>
-        <div class ="result" id="celery-result"></div>
+        
+        <!-- Result Section -->
+        <div class="result-card" id="celery-result"></div>
+        
+        <!-- Feature Pills -->
+        <div class="features">
+            <div class="feature-pill">
+                <span class="feature-icon">⚡</span>
+                <span>Lightning fast</span>
+            </div>
+            <div class="feature-pill">
+                <span class="feature-icon">🎵</span>
+                <span>Any playlist size</span>
+            </div>
+            <div class="feature-pill">
+                <span class="feature-icon">✨</span>
+                <span>Curated remixes</span>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

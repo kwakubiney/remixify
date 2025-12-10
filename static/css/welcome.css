@@ -1,70 +1,306 @@
-*
-{
-    box-sizing: border-box;
+/* ===========================================
+   REMIXIFY - Welcome Page
+   Organic/Natural Design with Spotify Colors
+   =========================================== */
+
+/* Organic Blob Backgrounds */
+.blob {
+    position: fixed;
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+    filter: blur(80px);
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: -1;
+    animation: blob-float 20s ease-in-out infinite;
 }
 
-html, body
-{
-    height: 100vh;
+.blob-1 {
+    width: 600px;
+    height: 600px;
+    background: linear-gradient(135deg, var(--primary) 0%, rgba(29, 185, 84, 0.3) 100%);
+    top: -200px;
+    right: -150px;
+    animation-delay: 0s;
 }
 
-.container{
-    height: 100%;
+.blob-2 {
+    width: 400px;
+    height: 400px;
+    background: linear-gradient(225deg, var(--primary) 0%, rgba(29, 185, 84, 0.2) 100%);
+    bottom: -100px;
+    left: -100px;
+    animation-delay: -7s;
+    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+}
+
+.blob-3 {
+    width: 300px;
+    height: 300px;
+    background: rgba(29, 185, 84, 0.15);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation-delay: -14s;
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+}
+
+@keyframes blob-float {
+    0%, 100% {
+        transform: translate(0, 0) rotate(0deg) scale(1);
+    }
+    25% {
+        transform: translate(30px, -30px) rotate(5deg) scale(1.05);
+    }
+    50% {
+        transform: translate(-20px, 20px) rotate(-5deg) scale(0.95);
+    }
+    75% {
+        transform: translate(20px, 10px) rotate(3deg) scale(1.02);
+    }
+}
+
+/* Container */
+.container {
+    min-height: 100vh;
     width: 100%;
-}
-
-.wrapper{
     display: flex;
-    text-align: center;
     flex-direction: column;
-    justify-content: center;
     align-items: center;
-}
-
-.links{
-    display: flex;
     justify-content: center;
+    padding: 2rem;
+    position: relative;
+}
+
+.wrapper {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     text-align: center;
-    margin-top: 35px;
-    color: black;
-
+    position: relative;
+    z-index: 1;
 }
 
-.btn:link,
-.btn:visited {
-    color: white;
-    text-decoration: none;
-    /* padding: 5px 5px 5px 5px; */
-    background-color: #1DB954;
-    /* font-weight: bold; */
-    font-size:20px;
-    display: inline-block;
-    border-radius: 10px;
-    transition: all .2s;
-    outline: none;
-    border: none;
+/* Brand Mark */
+.brand-mark {
+    width: 80px;
+    height: 80px;
+    background: var(--primary);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--background);
+    margin-bottom: 2.5rem;
+    box-shadow: var(--shadow-glow);
+    animation: pulse-glow 3s ease-in-out infinite;
 }
 
-.btn:hover{
-    transform: translateY(-3px);
-    /* box-shadow: 0 10px 20px rgba(0,0,0,.2); */
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 40px rgba(29, 185, 84, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 60px rgba(29, 185, 84, 0.5);
+    }
 }
 
-.btn:active {
-    transform: translateY(-1px);
-    /* box-shadow: 0 5px 10px rgba(0,0,0,.2); */
+/* Hero Content */
+.hero-content {
+    margin-bottom: 3rem;
 }
 
-#big-banner-head {
-    padding-top: 70px;
-    padding-bottom: 25px;
-    line-height: 1.1;
-    font-size: 3rem;
-    line-height: 1.3em;
+.brand-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: clamp(3.5rem, 10vw, 5rem);
+    font-weight: 800;
+    color: var(--primary);
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+    text-shadow: 0 0 80px rgba(29, 185, 84, 0.3);
+}
+
+.tagline {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    font-weight: 600;
+    color: var(--foreground);
+    line-height: 1.4;
+    margin-bottom: 1.5rem;
+}
+
+.tagline .highlight {
+    color: var(--primary);
+    position: relative;
+}
+
+.tagline .highlight::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--primary);
+    border-radius: 2px;
+    opacity: 0.5;
+}
+
+.description {
+    font-size: 1.1rem;
+    color: var(--foreground-muted);
+    max-width: 400px;
+    margin: 0 auto;
+    line-height: 1.7;
+}
+
+/* CTA Section */
+.cta-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.btn-organic {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 2.5rem;
+    background: var(--primary);
+    color: var(--background);
+    font-family: 'Nunito', sans-serif;
+    font-size: 1.1rem;
     font-weight: 700;
-    letter-spacing: .15rem;
+    text-decoration: none;
+    border-radius: 9999px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-soft);
+    position: relative;
+    overflow: hidden;
 }
 
-.big-text{
-    color: #1DB954;
+.btn-organic::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.btn-organic:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: var(--shadow-float);
+    background: var(--primary-hover);
+}
+
+.btn-organic:hover::before {
+    opacity: 1;
+}
+
+.btn-organic:active {
+    transform: translateY(-1px) scale(0.98);
+}
+
+.btn-organic svg {
+    flex-shrink: 0;
+}
+
+.trust-note {
+    font-size: 0.875rem;
+    color: var(--foreground-muted);
+    opacity: 0.7;
+}
+
+/* Floating Music Notes */
+.floating-elements {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.note {
+    position: absolute;
+    font-size: 2rem;
+    color: var(--primary);
+    opacity: 0.2;
+    animation: float-note 6s ease-in-out infinite;
+}
+
+.note-1 {
+    top: 10%;
+    left: 10%;
+    animation-delay: 0s;
+}
+
+.note-2 {
+    top: 20%;
+    right: 15%;
+    animation-delay: -2s;
+    font-size: 1.5rem;
+}
+
+.note-3 {
+    bottom: 20%;
+    left: 20%;
+    animation-delay: -4s;
+}
+
+@keyframes float-note {
+    0%, 100% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 0.2;
+    }
+    50% {
+        transform: translateY(-20px) rotate(10deg);
+        opacity: 0.4;
+    }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .container {
+        padding: 1.5rem;
+    }
+    
+    .brand-mark {
+        width: 64px;
+        height: 64px;
+        margin-bottom: 2rem;
+    }
+    
+    .brand-mark svg {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .btn-organic {
+        padding: 0.875rem 2rem;
+        font-size: 1rem;
+    }
+    
+    .blob-1 {
+        width: 300px;
+        height: 300px;
+        top: -100px;
+        right: -100px;
+    }
+    
+    .blob-2 {
+        width: 250px;
+        height: 250px;
+    }
+    
+    .floating-elements {
+        display: none;
+    }
 }

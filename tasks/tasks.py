@@ -67,6 +67,7 @@ def create_remix(self, url, user):
             sp.user_playlist_add_tracks(user_id, playlist_id, x)
     else:
         sp.user_playlist_add_tracks(user_id, playlist_id, track_id)
-        playlist_details = sp.user_playlist(user_id, playlist_id)
+    
+    playlist_details = sp.user_playlist(user_id, playlist_id)
     return playlist_details["external_urls"]["spotify"]
     
