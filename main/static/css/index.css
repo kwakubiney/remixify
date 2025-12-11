@@ -16,34 +16,36 @@
 }
 
 .blob-1 {
-    width: 500px;
-    height: 500px;
+    width: min(500px, 80vw);
+    height: min(500px, 80vw);
     background: linear-gradient(135deg, var(--primary) 0%, rgba(29, 185, 84, 0.3) 100%);
-    top: -150px;
-    left: -100px;
+    top: -100px;
+    left: -50px;
 }
 
 .blob-2 {
-    width: 400px;
-    height: 400px;
+    width: min(400px, 70vw);
+    height: min(400px, 70vw);
     background: rgba(29, 185, 84, 0.35);
-    bottom: -100px;
-    right: -100px;
+    bottom: -50px;
+    right: -50px;
     animation-delay: -12s;
     border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
 }
 
 @keyframes blob-drift {
     0%, 100% { transform: translate(0, 0) scale(1); }
-    33% { transform: translate(40px, -30px) scale(1.05); }
-    66% { transform: translate(-30px, 20px) scale(0.95); }
+    33% { transform: translate(20px, -15px) scale(1.02); }
+    66% { transform: translate(-15px, 10px) scale(0.98); }
 }
 
 /* Container */
 .container {
     min-height: 100vh;
     width: 100%;
+    max-width: 100vw;
     position: relative;
+    overflow-x: hidden;
 }
 
 .phase-container {
@@ -53,6 +55,8 @@
     align-items: center;
     justify-content: center;
     padding: 2rem;
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
 }
 
 .wrapper {
@@ -988,15 +992,17 @@
     }
     
     .blob-1 {
-        width: 300px;
-        height: 300px;
-        top: -100px;
-        left: -80px;
+        width: 200px;
+        height: 200px;
+        top: -50px;
+        left: -30px;
     }
     
     .blob-2 {
-        width: 250px;
-        height: 250px;
+        width: 180px;
+        height: 180px;
+        bottom: -30px;
+        right: -30px;
     }
     
     .stat-card {
@@ -1010,6 +1016,12 @@
     .btn-bulk {
         font-size: 0.75rem;
         padding: 0.4rem 0.75rem;
+    }
+    
+    /* Mobile touch stability */
+    .container,
+    .phase-container {
+        touch-action: pan-y;
     }
 }
 
