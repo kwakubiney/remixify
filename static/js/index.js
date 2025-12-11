@@ -44,7 +44,6 @@ const elements = {
     summaryStats: document.getElementById('summary-stats'),
     statHigh: document.getElementById('stat-high'),
     statMedium: document.getElementById('stat-medium'),
-    statLow: document.getElementById('stat-low'),
     statNone: document.getElementById('stat-none'),
     selectAllHigh: document.getElementById('select-all-high'),
     selectAll: document.getElementById('select-all'),
@@ -197,7 +196,6 @@ function renderTrackSelection(result) {
     // Update stats
     elements.statHigh.textContent = result.summary.high_confidence;
     elements.statMedium.textContent = result.summary.medium_confidence;
-    elements.statLow.textContent = result.summary.low_confidence;
     elements.statNone.textContent = result.summary.no_match;
     
     // Store tracks and auto-select high confidence

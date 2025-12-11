@@ -1,12 +1,12 @@
 import json
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_protect
 from tasks.tasks import create_remix, preview_remixes, create_remix_playlist
-from django.contrib.auth.decorators import login_required
 from celery.result import AsyncResult
 
 
-@login_required(login_url="home")
+@csrf_protect
 @require_http_methods(["POST"])
 def preview(request):
     """
@@ -17,12 +17,10 @@ def preview(request):
     if not url:
         return JsonResponse({"error": "URL is required"}, status=400)
     
-    user_id = request.user.id
-    result = preview_remixes.delay(url, user_id)
+    result = preview_remixes.delay(url)
     return JsonResponse({"task_id": result.task_id})
 
 
-@login_required(login_url="home")
 @require_http_methods(["GET"])
 def get_preview_result(request, task_id):
     """
@@ -48,12 +46,14 @@ def get_preview_result(request, task_id):
         })
 
 
-@login_required(login_url="home")
+@csrf_protect
 @require_http_methods(["POST"])
 def create_playlist(request):
     """
-    Phase 2: Create the playlist with user-selected tracks.
+    Phase 2: Create the playlist with user-selected tracks on the central account.
     Expects JSON body with playlist_name and selected_tracks array.
+    
+    No authentication required - playlist is created and made public.
     """
     try:
         data = json.loads(request.body)
@@ -63,15 +63,13 @@ def create_playlist(request):
         if not selected_tracks:
             return JsonResponse({"error": "No tracks selected"}, status=400)
         
-        user_id = request.user.id
-        result = create_remix_playlist.delay(user_id, playlist_name, selected_tracks)
+        result = create_remix_playlist.delay(playlist_name, selected_tracks)
         return JsonResponse({"task_id": result.task_id})
     
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
 
-@login_required(login_url="home")
 @require_http_methods(["GET"])
 def get_create_result(request, task_id):
     """
@@ -97,12 +95,12 @@ def get_create_result(request, task_id):
 
 
 # Legacy endpoint for backwards compatibility
-@login_required(login_url="home")
+@csrf_protect
 def result(request):
+    """Legacy: Direct remix creation without preview."""
     if request.method == 'POST':
         url = request.POST.get("url")
-        user_id = request.user.id
-        result = create_remix.delay(url, user_id)
+        result = create_remix.delay(url)
         context = {'task_id': result.task_id}
         return JsonResponse(context, safe=False)
     return JsonResponse({"error": "POST required"}, status=405)
