@@ -341,7 +341,7 @@ def create_remix_playlist(self, playlist_name, selected_tracks):
         user_id, 
         name=f"{playlist_name} (Remixed)", 
         public=True,
-        description="Remixed by Remixify! Hand-picked remix versions of your favorite tracks."
+        description="Curated by Remixify with your help."
     )
     
     playlist_id = playlist["id"]
@@ -385,7 +385,7 @@ def create_remix(self, url):
         user_id, 
         name=f"{playlist_info['playlist_name']} (Remixed)",
         public=True,
-        description="Remixed by Remixify!"
+        description="Curated by Remixify with your help."
     )
     
     playlist_id = playlist["id"]
