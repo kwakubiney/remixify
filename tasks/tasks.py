@@ -5,7 +5,7 @@ from difflib import SequenceMatcher
 from spotipy import Spotify
 from celery_progress.backend import ProgressRecorder
 from tasks.helpers import chunker, get_playlist_id
-from authentication.oauth import oauth_factory, spotify_client
+from authentication.oauth import get_spotify_client
 
 
 def calculate_match_confidence(original_name, original_artists, remix_track):
@@ -102,15 +102,14 @@ def get_confidence_level(score):
         return "medium"  # Only scores >= 40 reach here (low scores filtered out)
 
 
-def get_playlist(url, user):
-    """Fetch playlist tracks from Spotify."""
+def get_playlist(url):
+    """Fetch playlist tracks from Spotify"""
     playlist_id = get_playlist_id(url)
     pattern = re.compile(r"\(.*?\)")
-    oauth = oauth_factory(user)
+    sp = get_spotify_client()
     track_details = {}
     tracks = []
     items = []
-    sp = spotify_client(oauth)
     data = sp.playlist(playlist_id)
     track_details["playlist_name"] = data["name"]
     track_details["playlist_image"] = data["images"][0]["url"] if data["images"] else None
@@ -119,7 +118,7 @@ def get_playlist(url, user):
     results = data["tracks"]
 
     while next_page is not None:
-        results = Spotify(auth_manager=oauth).next(results)
+        results = sp.next(results)
         items.extend(results["items"])
         next_page = results.get("next")
 
@@ -222,14 +221,14 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
 
 
 @shared_task(bind=True)
-def preview_remixes(self, url, user):
+def preview_remixes(self, url):
     """
     Phase 1: Find remix candidates for all tracks and return for user review.
     
     OPTIMIZED: Uses parallel processing with ThreadPoolExecutor for ~5x faster results.
     """
     progress_recorder = ProgressRecorder(self)
-    playlist_info, tracks, sp = get_playlist(url, user)
+    playlist_info, tracks, sp = get_playlist(url)
     
     total_tracks = len(tracks)
     
@@ -325,21 +324,23 @@ def preview_remixes(self, url, user):
 
 
 @shared_task(bind=True)
-def create_remix_playlist(self, user, playlist_name, selected_tracks):
+def create_remix_playlist(self, playlist_name, selected_tracks):
     """
-    Phase 2: Create the playlist with user-selected tracks.
+    Phase 2: Create the playlist with user-selected tracks on the central account.
     selected_tracks is a list of Spotify track IDs.
+    
+    The playlist is created and made public so users can access it.
     """
     progress_recorder = ProgressRecorder(self)
-    oauth = oauth_factory(user)
-    sp = spotify_client(oauth)
+    sp = get_spotify_client()
     
     user_id = sp.me()["id"]
     
-    # Create the playlist
+    # Create the playlist as public so users can access it
     playlist = sp.user_playlist_create(
         user_id, 
         name=f"{playlist_name} (Remixed)", 
+        public=True,
         description="Remixed by Remixify! Hand-picked remix versions of your favorite tracks."
     )
     
@@ -366,10 +367,10 @@ def create_remix_playlist(self, user, playlist_name, selected_tracks):
 
 # Keep legacy function for backwards compatibility
 @shared_task(bind=True)
-def create_remix(self, url, user):
-    """Legacy: Direct remix creation without preview."""
-    sp_and_track_details = get_playlist(url, user)
-    tracks_info, tracks, sp = sp_and_track_details
+def create_remix(self, url):
+    """Legacy: Direct remix creation without preview. Uses central account."""
+    sp = get_spotify_client()
+    playlist_info, tracks, _ = get_playlist(url)
     track_ids = []
     progress_recorder = ProgressRecorder(self)
     
@@ -382,7 +383,8 @@ def create_remix(self, url, user):
     user_id = sp.me()["id"]
     playlist = sp.user_playlist_create(
         user_id, 
-        name=f"{tracks_info['playlist_name']} (Remixed)", 
+        name=f"{playlist_info['playlist_name']} (Remixed)",
+        public=True,
         description="Remixed by Remixify!"
     )
     
@@ -396,4 +398,3 @@ def create_remix(self, url, user):
     
     playlist_details = sp.user_playlist(user_id, playlist_id)
     return playlist_details["external_urls"]["spotify"]
-    

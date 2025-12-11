@@ -1,45 +1,84 @@
-from spotipy.cache_handler import  CacheHandler
-from allauth.socialaccount.models import SocialToken
+"""
+Central Spotify OAuth Module
+
+This module uses a single central Spotify account for all API operations.
+Instead of each user authenticating, we use ONE stored refresh token 
+that belongs to the app owner's Spotify account.
+"""
+import time
+from spotipy.cache_handler import CacheHandler
 from spotipy.oauth2 import SpotifyOAuth
-from authentication.timestamp import unix, deunix
-from spotipy import SpotifyOAuth
-from decouple import config
 from spotipy import Spotify
-from django.contrib.auth.models import User
+from decouple import config
 
-class RemixifyCacheHandler(CacheHandler):
 
-    def __init__(self, spotify_object):
-        self.spotify_object = spotify_object
-
+class CentralAccountCacheHandler(CacheHandler):
+    """
+    Cache handler that uses a centrally stored refresh token.
+    The refresh token is stored in environment variables.
+    Access tokens are cached in memory and refreshed as needed.
+    """
+    _token_cache = None  # Class-level cache for the token
+    
+    def __init__(self):
+        self.refresh_token = config("SPOTIFY_REFRESH_TOKEN", default=None)
+        if not self.refresh_token:
+            raise ValueError(
+                "SPOTIFY_REFRESH_TOKEN environment variable is required. "
+                "Run 'python manage.py generate_spotify_token' to generate one."
+            )
+    
     def get_cached_token(self):
+        """Return token info from cache or construct from refresh token."""
+        # If we have a valid cached token, return it
+        if CentralAccountCacheHandler._token_cache:
+            # Check if token is still valid (with 60s buffer)
+            if CentralAccountCacheHandler._token_cache.get("expires_at", 0) > time.time() + 60:
+                return CentralAccountCacheHandler._token_cache
         
-        token_info = {}
-
-        token_info["access_token"] = self.spotify_object.token
-        token_info["refresh_token"] = self.spotify_object.token_secret
-        token_info["expires_at"] = unix(self.spotify_object.expires_at)
-        token_info["scope"] = 'user-library-read playlist-modify-private playlist-modify-public playlist-read-collaborative playlist-read-private user-follow-modify'
-        
-        return token_info
-
+        # Return a token structure that triggers refresh
+        # SpotifyOAuth will use the refresh_token to get a new access_token
+        return {
+            "access_token": None,
+            "refresh_token": self.refresh_token,
+            "expires_at": 0,  # Expired, will trigger refresh
+            "scope": "user-library-read playlist-modify-private playlist-modify-public playlist-read-collaborative playlist-read-private user-follow-modify"
+        }
+    
     def save_token_to_cache(self, token_info):
-        # save the token info back to the `SocialToken` object
-        # notice that we're saving the token info back to the same place that we retrieved it from
-        # in `get_cached_token`; this is crucial
+        """Save refreshed token to class-level cache."""
+        CentralAccountCacheHandler._token_cache = token_info
 
-        self.spotify_object.token = token_info["access_token"]
-        self.spotify_object.token_secret = token_info["refresh_token"]
-        self.spotify_object.expires_at = deunix(token_info["expires_at"])
 
-      
-def oauth_factory(user_id):
+def get_spotify_oauth():
+    """
+    Get SpotifyOAuth manager for the central account.
+    No user_id needed - uses the central account's credentials.
+    """
     return SpotifyOAuth(
         client_id=config("SPOTIPY_CLIENT_ID"),
         client_secret=config("SPOTIPY_CLIENT_SECRET"),
-        redirect_uri= config("REDIRECT_URI"),
-        cache_handler= RemixifyCacheHandler(SocialToken.objects.filter(account__user= User.objects.get(id=user_id), account__provider= "spotify").first()))
-    
+        redirect_uri=config("REDIRECT_URI"),
+        cache_handler=CentralAccountCacheHandler(),
+        scope="user-library-read playlist-modify-private playlist-modify-public playlist-read-collaborative playlist-read-private user-follow-modify"
+    )
 
-def spotify_client(oauth):
+
+def get_spotify_client():
+    """
+    Get authenticated Spotify client for the central account.
+    This is the main entry point for all Spotify API operations.
+    """
+    oauth = get_spotify_oauth()
     return Spotify(auth_manager=oauth)
+
+
+# Legacy functions for backwards compatibility during migration
+def oauth_factory(user_id=None):
+    """Legacy wrapper - now ignores user_id and returns central OAuth."""
+    return get_spotify_oauth()
+
+
+def spotify_client(oauth=None):
+    """Legacy wrapper - returns central Spotify client."""
+    return get_spotify_client()
