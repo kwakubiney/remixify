@@ -7,7 +7,7 @@ from decouple import config
 
 def main():
     """Run administrative tasks."""
-    if config("REMIXIFY") == "prod":
+    if config("REMIXIFY", default="dev") == "prod":
         os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings.prod_settings')
     else:
         os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings.dev_settings')
