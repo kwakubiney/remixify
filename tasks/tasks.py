@@ -6,6 +6,7 @@ from spotipy import Spotify
 from celery_progress.backend import ProgressRecorder
 from tasks.helpers import chunker, get_playlist_id
 from tasks.models import CreatedPlaylist
+from tasks.redis_utils import increment_playlist_count
 from authentication.oauth import get_spotify_client
 
 
@@ -371,6 +372,9 @@ def create_remix_playlist(self, playlist_name, selected_tracks):
         image_url=image_url,
         track_count=len(selected_tracks)
     )
+    
+    # Increment the global playlist counter in Redis
+    increment_playlist_count()
     
     # Keep only the most recent 20 playlists to avoid database bloat
     old_playlists = CreatedPlaylist.objects.all()[20:]

@@ -67,7 +67,53 @@ document.addEventListener('DOMContentLoaded', () => {
     state.csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     setupEventListeners();
     loadRecentPlaylists();
+    loadPlaylistCount();
 });
+
+// Animated counter with rolling effect
+function animateCounter(element, targetValue, duration = 1500) {
+    const startValue = 0;
+    const startTime = performance.now();
+    
+    function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function for smooth deceleration
+        const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+        const currentValue = Math.floor(startValue + (targetValue - startValue) * easeOutQuart);
+        
+        element.textContent = currentValue.toLocaleString();
+        
+        if (progress < 1) {
+            requestAnimationFrame(update);
+        } else {
+            element.textContent = targetValue.toLocaleString();
+        }
+    }
+    
+    requestAnimationFrame(update);
+}
+
+// Load playlist count
+async function loadPlaylistCount() {
+    try {
+        const response = await fetch('/playlist-count/');
+        const data = await response.json();
+        
+        if (data.count > 0) {
+            const counterEl = document.getElementById('playlist-counter');
+            const numberEl = document.getElementById('counter-number');
+            
+            counterEl.style.display = 'inline-flex';
+            
+            // Start the rolling animation
+            animateCounter(numberEl, data.count);
+        }
+    } catch (error) {
+        console.log('Could not load playlist count:', error);
+    }
+}
 
 // Load recent playlists
 async function loadRecentPlaylists() {
@@ -77,10 +123,14 @@ async function loadRecentPlaylists() {
         
         if (data.playlists && data.playlists.length > 0) {
             renderRecentPlaylists(data.playlists);
-            elements.recentPlaylists.style.display = 'block';
+        } else {
+            // Hide section if no playlists
+            elements.recentPlaylists.style.display = 'none';
         }
     } catch (error) {
         console.log('Could not load recent playlists:', error);
+        // Hide section on error
+        elements.recentPlaylists.style.display = 'none';
     }
 }
 

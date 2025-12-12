@@ -126,3 +126,14 @@ def recent_playlists(request):
     ]
     
     return JsonResponse({"playlists": data})
+
+
+@require_http_methods(["GET"])
+def playlist_count(request):
+    """
+    Get the total number of playlists created (from Redis).
+    Fast counter for display on homepage.
+    """
+    from tasks.redis_utils import get_playlist_count
+    count = get_playlist_count()
+    return JsonResponse({"count": count})
