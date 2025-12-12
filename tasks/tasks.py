@@ -5,6 +5,7 @@ from difflib import SequenceMatcher
 from spotipy import Spotify
 from celery_progress.backend import ProgressRecorder
 from tasks.helpers import chunker, get_playlist_id
+from tasks.models import CreatedPlaylist
 from authentication.oauth import get_spotify_client
 
 
@@ -357,6 +358,24 @@ def create_remix_playlist(self, playlist_name, selected_tracks):
         progress_recorder.set_progress(1, 1)
     
     playlist_details = sp.user_playlist(user_id, playlist_id)
+    
+    # Get playlist image (use first image if available)
+    image_url = None
+    if playlist_details.get("images") and len(playlist_details["images"]) > 0:
+        image_url = playlist_details["images"][0]["url"]
+    
+    # Save to database for recent playlists display
+    CreatedPlaylist.objects.create(
+        name=playlist_details["name"],
+        spotify_url=playlist_details["external_urls"]["spotify"],
+        image_url=image_url,
+        track_count=len(selected_tracks)
+    )
+    
+    # Keep only the most recent 20 playlists to avoid database bloat
+    old_playlists = CreatedPlaylist.objects.all()[20:]
+    for playlist_obj in old_playlists:
+        playlist_obj.delete()
     
     return {
         "url": playlist_details["external_urls"]["spotify"],

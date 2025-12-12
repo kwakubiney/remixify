@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_protect
 from tasks.tasks import create_remix, preview_remixes, create_remix_playlist
+from tasks.models import CreatedPlaylist
 from celery.result import AsyncResult
 
 
@@ -104,3 +105,24 @@ def result(request):
         context = {'task_id': result.task_id}
         return JsonResponse(context, safe=False)
     return JsonResponse({"error": "POST required"}, status=405)
+
+
+@require_http_methods(["GET"])
+def recent_playlists(request):
+    """
+    Get the 3 most recently created playlists.
+    Returns playlist name, URL, image, and track count.
+    """
+    playlists = CreatedPlaylist.objects.all()[:3]
+    
+    data = [
+        {
+            "name": p.name,
+            "url": p.spotify_url,
+            "image": p.image_url,
+            "track_count": p.track_count,
+        }
+        for p in playlists
+    ]
+    
+    return JsonResponse({"playlists": data})

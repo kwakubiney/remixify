@@ -8,6 +8,9 @@ urlpatterns = [
     path('create-playlist/', views.create_playlist, name="create_playlist"),
     path('create-playlist/<str:task_id>/', views.get_create_result, name="create_result"),
     
+    # Recent playlists
+    path('recent-playlists/', views.recent_playlists, name="recent_playlists"),
+    
     # Legacy endpoint
     path('results/', views.result, name="result"),
 ]

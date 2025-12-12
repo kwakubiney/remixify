@@ -35,6 +35,8 @@ const elements = {
     progressSection: document.getElementById('progress-section'),
     progressBar: document.getElementById('progress-bar'),
     progressMessage: document.getElementById('progress-message'),
+    recentPlaylists: document.getElementById('recent-playlists'),
+    recentList: document.getElementById('recent-list'),
     
     // Phase 2
     backBtn: document.getElementById('back-btn'),
@@ -64,7 +66,47 @@ const elements = {
 document.addEventListener('DOMContentLoaded', () => {
     state.csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     setupEventListeners();
+    loadRecentPlaylists();
 });
+
+// Load recent playlists
+async function loadRecentPlaylists() {
+    try {
+        const response = await fetch('/recent-playlists/');
+        const data = await response.json();
+        
+        if (data.playlists && data.playlists.length > 0) {
+            renderRecentPlaylists(data.playlists);
+            elements.recentPlaylists.style.display = 'block';
+        }
+    } catch (error) {
+        console.log('Could not load recent playlists:', error);
+    }
+}
+
+function renderRecentPlaylists(playlists) {
+    elements.recentList.innerHTML = playlists.map(playlist => `
+        <a href="${playlist.url}" target="_blank" rel="noopener noreferrer" class="recent-card">
+            <div class="recent-image">
+                ${playlist.image 
+                    ? `<img src="${playlist.image}" alt="${playlist.name}">`
+                    : `<div class="recent-placeholder">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M8 15C8.5 12 10.5 10 14 9"/>
+                            <path d="M8 12C8.5 10 10 8.5 13 8"/>
+                        </svg>
+                       </div>`
+                }
+            </div>
+            <div class="recent-info">
+                <span class="recent-name">${playlist.name}</span>
+                <span class="recent-tracks">${playlist.track_count} tracks</span>
+            </div>
+        </a>
+    `).join('');
+}
+
 function setupEventListeners() {
     // Phase 1: Form submission
     elements.form.addEventListener('submit', handleFormSubmit);
@@ -86,7 +128,13 @@ async function handleFormSubmit(e) {
     e.preventDefault();
     
     const url = elements.urlInput.value.trim();
-    if (!url) return;
+    if (!url) {
+        // Shake the input to indicate error
+        elements.urlInput.classList.add('shake');
+        elements.urlInput.focus();
+        setTimeout(() => elements.urlInput.classList.remove('shake'), 500);
+        return;
+    }
     
     // Show progress
     elements.progressSection.style.display = 'block';

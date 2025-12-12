@@ -16,15 +16,15 @@ ROOT_URLCONF = 'main.urls'
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '.onrender.com',
-    '.fly.dev',  # Fly.io
-    'remixify-007.herokuapp.com',
+    '.fly.dev',
+    'remixify.xyz',
+    'www.remixify.xyz',
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://*.onrender.com',
     'https://*.fly.dev',  # Fly.io
-    'https://remixify-007.herokuapp.com',
+    'https://remixify.xyz',
+    'https://www.remixify.xyz',
 ]
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
