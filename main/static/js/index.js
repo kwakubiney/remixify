@@ -8,6 +8,7 @@
 const state = {
     playlistName: '',
     playlistImage: '',
+    originalUrl: '',
     tracks: [],
     selectedTracks: new Map(), // trackId -> track data
     csrfToken: '',
@@ -151,7 +152,7 @@ function renderRecentPlaylists(playlists) {
             </div>
             <div class="recent-info">
                 <span class="recent-name">${playlist.name}</span>
-                <span class="recent-tracks">${playlist.track_count} tracks</span>
+                ${playlist.original_author && playlist.original_author !== 'Unknown' ? `<span class="recent-tracks">by ${playlist.original_author}</span>` : ''}
             </div>
         </a>
     `).join('');
@@ -178,6 +179,7 @@ async function handleFormSubmit(e) {
     e.preventDefault();
     
     const url = elements.urlInput.value.trim();
+    state.originalUrl = url;
     if (!url) {
         // Shake the input to indicate error
         elements.urlInput.classList.add('shake');
@@ -698,7 +700,8 @@ async function handleCreatePlaylist() {
             },
             body: JSON.stringify({
                 playlist_name: state.playlistName,
-                selected_tracks: selectedIds
+                selected_tracks: selectedIds,
+                original_url: state.originalUrl
             })
         });
         

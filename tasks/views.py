@@ -60,11 +60,12 @@ def create_playlist(request):
         data = json.loads(request.body)
         playlist_name = data.get("playlist_name", "My Playlist")
         selected_tracks = data.get("selected_tracks", [])
+        original_url = data.get("original_url", "")
         
         if not selected_tracks:
             return JsonResponse({"error": "No tracks selected"}, status=400)
         
-        result = create_remix_playlist.delay(playlist_name, selected_tracks)
+        result = create_remix_playlist.delay(playlist_name, selected_tracks, original_url)
         return JsonResponse({"task_id": result.task_id})
     
     except json.JSONDecodeError:
@@ -120,7 +121,7 @@ def recent_playlists(request):
             "name": p.name,
             "url": p.spotify_url,
             "image": p.image_url,
-            "track_count": p.track_count,
+            "original_author": p.original_author or "Unknown",
         }
         for p in playlists
     ]

@@ -115,6 +115,7 @@ def get_playlist(url):
     data = sp.playlist(playlist_id)
     track_details["playlist_name"] = data["name"]
     track_details["playlist_image"] = data["images"][0]["url"] if data["images"] else None
+    track_details["playlist_owner"] = data["owner"]["display_name"]
     items += data["tracks"]["items"]
     next_page = data["tracks"]["next"]
     results = data["tracks"]
@@ -326,7 +327,7 @@ def preview_remixes(self, url):
 
 
 @shared_task(bind=True)
-def create_remix_playlist(self, playlist_name, selected_tracks):
+def create_remix_playlist(self, playlist_name, selected_tracks, original_url):
     """
     Phase 2: Create the playlist with user-selected tracks on the central account.
     selected_tracks is a list of Spotify track IDs.
@@ -335,6 +336,9 @@ def create_remix_playlist(self, playlist_name, selected_tracks):
     """
     progress_recorder = ProgressRecorder(self)
     sp = get_spotify_client()
+    
+    # Get original playlist info for author
+    playlist_info, _, _ = get_playlist(original_url)
     
     user_id = sp.me()["id"]
     
@@ -370,7 +374,8 @@ def create_remix_playlist(self, playlist_name, selected_tracks):
         name=playlist_details["name"],
         spotify_url=playlist_details["external_urls"]["spotify"],
         image_url=image_url,
-        track_count=len(selected_tracks)
+        track_count=len(selected_tracks),
+        original_author=playlist_info.get("playlist_owner", "")
     )
     
     # Increment the global playlist counter in Redis

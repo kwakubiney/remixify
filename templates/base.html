@@ -19,6 +19,30 @@
     
     <!-- Base Organic Styles -->
     <style>
+        @media (max-width: 600px) {
+            .fixed-header-links {
+                position: static !important;
+                display: flex;
+                justify-content: flex-start;
+                margin: 0.5rem 0 0 0;
+                z-index: 2000;
+            }
+            .fixed-header-links a {
+                width: auto;
+                max-width: 180px;
+                margin: 0 !important;
+                font-size: 0.85rem;
+                padding: 0.4rem 0.8rem;
+                border-radius: 16px;
+                box-shadow: var(--shadow-soft);
+            }
+            .bmc-button {
+                font-size: 0.75rem;
+                padding: 0.3rem 0.6rem;
+                margin-left: 0.5rem;
+                white-space: nowrap;
+            }
+        }
         :root {
             /* Light Theme - Spotify Green Accents */
             --background: #fafafa;
@@ -77,16 +101,38 @@
             font-weight: 700;
             line-height: 1.2;
         }
+        
+        .bmc-button {
+            background: #ffdd00;
+            color: #222;
+            padding: 0.4rem 0.8rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            box-shadow: var(--shadow-soft);
+            text-decoration: none;
+            display: inline-block;
+            transition: background 0.2s;
+            border: 1px solid #fff;
+            margin-left: 1rem;
+        }
+        
+        .bmc-button:hover {
+            background: #ffed4e;
+        }
     </style>
     
     {% block styles %}
     {% endblock %}
 </head>
 <body>
+    <div class="fixed-header-links" style="position: fixed; top: 1.5rem; right: 1.5rem; z-index: 2000;">
+        <!-- Button moved to index.html -->
+    </div>
     {% block spotify %} 
     {% endblock %}
-    <footer style="margin-top: 3rem; padding: 1.5rem 0; text-align: center; color: var(--foreground-muted); font-size: 1rem;">
-        Found a bug? DM <a href="https://x.com/kwakubiney_" target="_blank" rel="noopener" style="color: var(--primary); text-decoration: underline;">me</a> on X or <a href="https://github.com/kwakubiney/remixify/issues" target="_blank" rel="noopener" style="color: var(--primary); text-decoration: underline;">open a GitHub issue</a>.
+    <footer style="margin-top: 3rem; padding: 1.5rem 0; text-align: center; color: var(--foreground-muted); font-size: 0.9rem;">
+        Need help? <a href="https://x.com/kwakubiney_" target="_blank" rel="noopener" style="color: var(--primary); text-decoration: underline;">DM me on X</a> or <a href="https://github.com/kwakubiney/remixify/issues" target="_blank" rel="noopener" style="color: var(--primary); text-decoration: underline;">report an issue on GitHub</a>.
     </footer>
 </body>
 </html>
