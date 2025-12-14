@@ -251,7 +251,43 @@ async function pollPreviewResult(taskId) {
                 resetPhase1();
             }
         },
-        onError: function(error) {
+        onTaskError: function(progressBarElement, progressBarMessageElement, excMessage) {
+            // Extract the clean error message from backend exceptions
+            let errorMessage = 'Failed to find remixes. Please try again.';
+            
+            if (excMessage) {
+                // Check for ValueError (our user-facing errors)
+                if (excMessage.includes('ValueError:')) {
+                    const parts = excMessage.split('ValueError:');
+                    if (parts.length > 1) {
+                        let msg = parts[parts.length - 1].trim();
+                        msg = msg.split('\n')[0];
+                        if ((msg.startsWith('"') && msg.endsWith('"')) || (msg.startsWith("'") && msg.endsWith("'"))) {
+                            msg = msg.slice(1, -1);
+                        }
+                        errorMessage = msg;
+                    }
+                } 
+                // Handle raw SpotifyException (http status: 404, ...)
+                else if (excMessage.includes('http status: 404')) {
+                    errorMessage = "This playlist is private or doesn't exist. Please use a public playlist.";
+                }
+                else if (excMessage.includes('http status: 429')) {
+                    errorMessage = "Too many requests. Please try again in a moment.";
+                }
+                else if (excMessage.includes('http status:')) {
+                    errorMessage = "Unable to load this playlist. Please check the link and try again.";
+                }
+                else if (!excMessage.includes('Traceback')) {
+                    errorMessage = excMessage;
+                }
+            }
+            
+            showError(errorMessage);
+            resetPhase1();
+        },
+        onError: function(progressBarElement, progressBarMessageElement, excMessage) {
+            // Generic error handler for network/parsing errors
             showError('Failed to find remixes. Please try again.');
             resetPhase1();
         }
@@ -730,7 +766,7 @@ async function pollCreateResult(taskId) {
             const data = await response.json();
             
             if (data.status === 'complete') {
-                showSuccess(data.result);
+                showPhase3Success(data.result);
             } else if (data.status === 'error') {
                 throw new Error(data.error);
             } else {
@@ -746,7 +782,7 @@ async function pollCreateResult(taskId) {
     checkResult();
 }
 
-function showSuccess(result) {
+function showPhase3Success(result) {
     elements.successMessage.textContent = `"${result.name}" with ${result.track_count} tracks is ready!`;
     elements.spotifyLink.href = result.url;
     goToPhase3();
@@ -869,6 +905,35 @@ function escapeHtml(text) {
 }
 
 function showError(message) {
-    // Simple alert for now - could be replaced with toast notification
-    alert(`Error: ${message}`);
+    Toastify({
+        text: message,
+        duration: 5000,
+        gravity: "top",
+        position: "center",
+        stopOnFocus: true,
+        style: {
+            background: "#dc2626",
+            borderRadius: "12px",
+            padding: "16px 24px",
+            fontSize: "15px",
+            fontFamily: "'Nunito', sans-serif"
+        }
+    }).showToast();
+}
+
+function showSuccess(message) {
+    Toastify({
+        text: message,
+        duration: 3000,
+        gravity: "top",
+        position: "center",
+        stopOnFocus: true,
+        style: {
+            background: "#1DB954",
+            borderRadius: "12px",
+            padding: "16px 24px",
+            fontSize: "15px",
+            fontFamily: "'Nunito', sans-serif"
+        }
+    }).showToast();
 }

@@ -6,13 +6,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <meta name="description" content="Convert your Spotify playlists to remixed versions instantly">
     
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%231DB954'/><path d='M35 30 L35 60 Q35 70 45 70 Q55 70 55 60 L55 35 L70 30 L70 55 Q70 65 80 65 Q90 65 90 55 L90 20 L35 30Z' fill='white'/></svg>">
+    <!-- SEO & Favicon -->
+    <link rel="icon" href="{% static 'images/logo.png' %}" type="image/png">
+    <link rel="apple-touch-icon" href="{% static 'images/logo.png' %}">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://remixify.xyz/">
+    <meta property="og:title" content="Remixify - Discover Remixes for Your Playlists">
+    <meta property="og:description" content="Convert your Spotify playlists to remixed versions instantly. Find extended mixes, edits, and remixes of tracks you love.">
+    <meta property="og:image" content="https://remixify.xyz{% static 'images/logo.png' %}">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary">
+    <meta property="twitter:url" content="https://remixify.xyz/">
+    <meta property="twitter:title" content="Remixify - Discover Remixes for Your Playlists">
+    <meta property="twitter:description" content="Convert your Spotify playlists to remixed versions instantly. Find extended mixes, edits, and remixes of tracks you love.">
+    <meta property="twitter:image" content="https://remixify.xyz{% static 'images/logo.png' %}">
+    
+    <!-- Structured Data for Google Search -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Remixify",
+      "url": "https://remixify.xyz/",
+      "logo": "https://remixify.xyz{% static 'images/logo.png' %}"
+    }
+    </script>
     
     <!-- Google Fonts - Organic Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,800&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Toastify JS for notifications -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
     
     <!-- jQuery -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>

@@ -850,6 +850,22 @@
     text-overflow: ellipsis;
 }
 
+.track-search-link {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    width: fit-content;
+    opacity: 0.85;
+}
+
+.track-search-link:hover {
+    color: var(--foreground);
+    opacity: 1;
+}
+
 /* Arrow */
 .track-arrow {
     color: var(--foreground-muted);
@@ -1423,3 +1439,9 @@
         display: none;
     }
 }
+
+/* ===========================================
+   TOAST NOTIFICATIONS
+   =========================================== */
+/* Toastify JS styles are loaded from CDN */
+
