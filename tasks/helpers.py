@@ -13,6 +13,6 @@ def get_playlist_id(url):
     mo = re.search(r"playlist/([a-zA-Z0-9]{22})(?:\?|$)", url)
     
     if mo is None:
-        raise ValueError("Remixify needs a Spotify link, kindly check again")
+        raise ValueError("Please paste a Spotify playlist link")
     
     return mo.group(1)

@@ -152,7 +152,7 @@ function renderRecentPlaylists(playlists) {
             </div>
             <div class="recent-info">
                 <span class="recent-name">${playlist.name}</span>
-                <span class="recent-tracks">by ${playlist.original_author}</span>
+                ${playlist.original_author && playlist.original_author !== 'Unknown' ? `<span class="recent-tracks">by ${playlist.original_author}</span>` : ''}
             </div>
         </a>
     `).join('');

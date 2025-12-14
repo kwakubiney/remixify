@@ -1,5 +1,6 @@
 from celery import shared_task
 import re
+import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from difflib import SequenceMatcher
 from spotipy import Spotify
@@ -8,6 +9,8 @@ from tasks.helpers import chunker, get_playlist_id
 from tasks.models import CreatedPlaylist
 from tasks.redis_utils import increment_playlist_count
 from authentication.oauth import get_spotify_client
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_match_confidence(original_name, original_artists, remix_track):
@@ -106,13 +109,22 @@ def get_confidence_level(score):
 
 def get_playlist(url):
     """Fetch playlist tracks from Spotify"""
+    from spotipy.exceptions import SpotifyException
+    
     playlist_id = get_playlist_id(url)
     pattern = re.compile(r"\(.*?\)")
     sp = get_spotify_client()
     track_details = {}
     tracks = []
     items = []
-    data = sp.playlist(playlist_id)
+    
+    try:
+        data = sp.playlist(playlist_id)
+    except SpotifyException as e:
+        if e.http_status == 404:
+            raise ValueError("This playlist is private or doesn't exist. Please use a public playlist.")
+        raise ValueError(f"Unable to access playlist: {str(e)}")
+    
     track_details["playlist_name"] = data["name"]
     track_details["playlist_image"] = data["images"][0]["url"] if data["images"] else None
     track_details["playlist_owner"] = data["owner"]["display_name"]
@@ -230,17 +242,24 @@ def preview_remixes(self, url):
     
     OPTIMIZED: Uses parallel processing with ThreadPoolExecutor for ~5x faster results.
     """
-    progress_recorder = ProgressRecorder(self)
-    playlist_info, tracks, sp = get_playlist(url)
+    logger.info(f"Starting preview_remixes task - URL: {url}, Task ID: {self.request.id}")
     
-    total_tracks = len(tracks)
-    
-    preview_results = {
-        "playlist_name": playlist_info["playlist_name"],
-        "playlist_image": playlist_info.get("playlist_image"),
-        "total_tracks": total_tracks,
-        "tracks": []
-    }
+    try:
+        progress_recorder = ProgressRecorder(self)
+        playlist_info, tracks, sp = get_playlist(url)
+        
+        total_tracks = len(tracks)
+        logger.info(f"Playlist ingested - Name: {playlist_info['playlist_name']}, Total tracks: {total_tracks}")
+        
+        preview_results = {
+            "playlist_name": playlist_info["playlist_name"],
+            "playlist_image": playlist_info.get("playlist_image"),
+            "total_tracks": total_tracks,
+            "tracks": []
+        }
+    except Exception as e:
+        logger.error(f"Error ingesting playlist from URL {url}: {str(e)}", exc_info=True)
+        raise
     
     # Process tracks in parallel for significant speedup
     # Use 5 workers to balance speed vs API rate limits

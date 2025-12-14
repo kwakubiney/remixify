@@ -1,10 +1,14 @@
 import json
+import logging
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_protect
 from tasks.tasks import create_remix, preview_remixes, create_remix_playlist
 from tasks.models import CreatedPlaylist
+from tasks.helpers import get_playlist_id
 from celery.result import AsyncResult
+
+logger = logging.getLogger(__name__)
 
 
 @csrf_protect
@@ -15,11 +19,27 @@ def preview(request):
     Returns a task_id to poll for results.
     """
     url = request.POST.get("url")
+    
+    logger.info(f"Preview request received - URL: {url}, User: {request.user}")
+
     if not url:
+        logger.warning(f"Preview request without URL from user: {request.user}")
         return JsonResponse({"error": "URL is required"}, status=400)
     
-    result = preview_remixes.delay(url)
-    return JsonResponse({"task_id": result.task_id})
+    # Validate playlist URL before queuing task
+    try:
+        get_playlist_id(url)
+    except ValueError as e:
+        logger.warning(f"Invalid playlist URL from user {request.user}: {url}")
+        return JsonResponse({"error": str(e)}, status=400)
+    
+    try:
+        result = preview_remixes.delay(url)
+        logger.info(f"Preview task started - Task ID: {result.task_id}, URL: {url}")
+        return JsonResponse({"task_id": result.task_id})
+    except Exception as e:
+        logger.error(f"Error starting preview task for URL {url}: {str(e)}", exc_info=True)
+        return JsonResponse({"error": "Failed to start preview task"}, status=500)
 
 
 @require_http_methods(["GET"])
@@ -62,14 +82,22 @@ def create_playlist(request):
         selected_tracks = data.get("selected_tracks", [])
         original_url = data.get("original_url", "")
         
+        logger.info(f"Create playlist request - Name: {playlist_name}, Tracks: {len(selected_tracks)}, Original URL: {original_url}, User: {request.user}")
+        
         if not selected_tracks:
+            logger.warning(f"Create playlist request with no tracks from user: {request.user}")
             return JsonResponse({"error": "No tracks selected"}, status=400)
         
         result = create_remix_playlist.delay(playlist_name, selected_tracks, original_url)
+        logger.info(f"Playlist creation task started - Task ID: {result.task_id}, Name: {playlist_name}")
         return JsonResponse({"task_id": result.task_id})
     
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in create playlist request: {str(e)}", exc_info=True)
         return JsonResponse({"error": "Invalid JSON"}, status=400)
+    except Exception as e:
+        logger.error(f"Error creating playlist: {str(e)}", exc_info=True)
+        return JsonResponse({"error": "Failed to create playlist"}, status=500)
 
 
 @require_http_methods(["GET"])

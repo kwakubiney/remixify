@@ -50,3 +50,19 @@ sentry_sdk.init(
     traces_sample_rate=0.1,
     send_default_pii=False
 )
+# Enhanced Sentry configuration
+sentry_dsn = config('SENTRY_DSN', default='')
+if sentry_dsn:
+    import sentry_sdk
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        integrations=[DjangoIntegration()],
+        traces_sample_rate=0.1,
+        send_default_pii=True,
+        environment=config('ENVIRONMENT', default='production'),
+    )
+
+# Production logging
+LOGGING['handlers']['console']['level'] = 'INFO'
+LOGGING['loggers']['django']['level'] = 'INFO'
+LOGGING['loggers']['django.request']['level'] = 'INFO'
