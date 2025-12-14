@@ -3,7 +3,7 @@ import logging
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_protect
-from tasks.tasks import create_remix, preview_remixes, create_remix_playlist
+from tasks.tasks import preview_remixes, create_remix_playlist
 from tasks.models import CreatedPlaylist
 from tasks.helpers import get_playlist_id
 from celery.result import AsyncResult

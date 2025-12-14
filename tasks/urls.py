@@ -12,6 +12,4 @@ urlpatterns = [
     path('recent-playlists/', views.recent_playlists, name="recent_playlists"),
     path('playlist-count/', views.playlist_count, name="playlist_count"),
     
-    # Legacy endpoint
-    path('results/', views.result, name="result"),
 ]
