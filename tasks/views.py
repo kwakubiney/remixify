@@ -124,17 +124,6 @@ def get_create_result(request, task_id):
         })
 
 
-# Legacy endpoint for backwards compatibility
-@csrf_protect
-def result(request):
-    """Legacy: Direct remix creation without preview."""
-    if request.method == 'POST':
-        url = request.POST.get("url")
-        result = create_remix.delay(url)
-        context = {'task_id': result.task_id}
-        return JsonResponse(context, safe=False)
-    return JsonResponse({"error": "POST required"}, status=405)
-
 
 @require_http_methods(["GET"])
 def recent_playlists(request):

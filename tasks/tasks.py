@@ -3,7 +3,6 @@ import re
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from difflib import SequenceMatcher
-from spotipy import Spotify
 from celery_progress.backend import ProgressRecorder
 from tasks.helpers import chunker, get_playlist_id
 from tasks.models import CreatedPlaylist
@@ -13,88 +12,387 @@ from authentication.oauth import get_spotify_client
 logger = logging.getLogger(__name__)
 
 
+def choose_best_canonical_track(
+    *,
+    wanted_title_norm: str,
+    wanted_artist: str,
+    items: list[dict],
+) -> dict | None:
+    """Pick the best canonical/original track from Spotify search items.
+
+    Pure helper (no API calls) so we can regression-test selection behavior.
+    The caller is responsible for providing results from a *title+artist* constrained search.
+
+    Selection rules (in order):
+    1) Must normalize to the same base title as `wanted_title_norm`
+    2) Must have artist token overlap with `wanted_artist`
+    3) Prefer a truly plain original when it exists (raw name exactly equals base title)
+    4) Prefer non-versioned names over versioned
+    """
+    version_hint_words = [
+        "remix",
+        "remixed",
+        "rmx",
+        "edit",
+        "rework",
+        "bootleg",
+        "flip",
+        "mix",
+        "version",
+        "extended",
+        "club",
+        "radio",
+        "dub",
+        "vip",
+    ]
+
+    def is_versioned_title(name: str) -> bool:
+        name_lc = (name or "").lower()
+        return any(w in name_lc for w in version_hint_words)
+
+    def has_artist_link(candidate_artists: list[str], required_artist: str) -> bool:
+        wanted = artist_tokens(required_artist)
+        if not wanted:
+            return False
+        cand_tokens = set()
+        for a in candidate_artists or []:
+            cand_tokens |= artist_tokens(a)
+        if not cand_tokens:
+            return False
+        return bool(wanted & cand_tokens)
+
+    wanted_title_norm = wanted_title_norm or ""
+    wanted_tokens = set(wanted_title_norm.split())
+
+    best_item = None
+    best_score = -10_000
+
+    for it in items or []:
+        raw_name = it.get("name") or ""
+        cand_title_norm = normalize_title(raw_name)
+        if not cand_title_norm:
+            continue
+        if cand_title_norm != wanted_title_norm:
+            continue
+
+        cand_artists = [a.get("name", "") for a in (it.get("artists") or [])]
+        if not cand_artists:
+            continue
+        if not has_artist_link(cand_artists, wanted_artist):
+            continue
+
+        name_versioned = is_versioned_title(raw_name)
+        is_plain_exact = raw_name.strip().lower() == wanted_title_norm.strip().lower()
+
+        score = 0
+        if is_plain_exact:
+            score += 10_000
+        if not name_versioned:
+            score += 1_000
+        else:
+            score -= 1_000
+        score -= len(raw_name)
+        score += 10 * len(wanted_tokens & set(cand_title_norm.split()))
+
+        if score > best_score:
+            best_score = score
+            best_item = it
+
+    return best_item
+
+
+def normalize_title(title):
+    """
+    Normalize a song title for comparison.
+    Removes parenthetical content, featured artists, and common suffixes.
+    Returns the core song name.
+    """
+    title = title.lower().strip()
+    
+    # Remove content in parentheses and brackets (often contains remix info, features, etc.)
+    title = re.sub(r'\s*[\(\[][^\)\]]*[\)\]]', '', title)
+    
+    # Remove "feat.", "ft.", "featuring", etc.
+    title = re.sub(r'\s*(feat\.?|ft\.?|featuring)\s+.*$', '', title, flags=re.IGNORECASE)
+    
+    # Remove common suffixes after dash
+    # 1) Simple: "Song - Remix" / "Song - Extended" / etc.
+    title = re.sub(
+        r"\s*[-–—]\s*(remix|remaster|radio|extended|club|vip|edit|mix|version|original|single|album|live|acoustic|instrumental|explicit|clean|bonus|deluxe|anniversary|edition)\b.*$",
+        "",
+        title,
+        flags=re.IGNORECASE,
+    )
+
+    # 2) More general: version labels that end with a known tail word.
+    # This catches cases like "Hey Hey - DF's Attention Vocal Mix" where the suffix
+    # doesn't start with "mix" but *ends* with "mix".
+    title = re.sub(
+        r"\s*[-–—]\s*.*\b(vocal\s+mix|instrumental\s+mix|dub\s+mix|club\s+mix|extended\s+mix|radio\s+edit|vip|mix|edit|remix|version)\b\s*$",
+        "",
+        title,
+        flags=re.IGNORECASE,
+    )
+    
+    # Remove trailing/leading punctuation and whitespace
+    title = re.sub(r'^[\s\-–—:]+|[\s\-–—:]+$', '', title)
+    
+    return title.strip()
+
+
+def extract_remix_base_title(remix_name):
+    """
+    Extract the base song title from a remix name.
+    
+    Examples:
+    - "Alien - Club Remix" → "alien"
+    - "Bad Guy (Tiesto Remix)" → "bad guy"  
+    - "Blinding Lights - Major Lazer Remix" → "blinding lights"
+    - "A Bar Song (Tipsy) - Remix" → "a bar song tipsy" (IMPORTANT: this is NOT "Tipsy")
+    """
+    name = remix_name.lower().strip()
+    
+    # First, try to split on " - " and take the first part (before remix info)
+    if " - " in name:
+        parts = name.split(" - ")
+        # Check if first part looks like the song title (not the remix credit)
+        first_part = parts[0].strip()
+        # If the first part doesn't contain remix keywords, it's likely the title
+        remix_indicators = [
+            "remix",
+            "remixed",
+            "rmx",
+            "edit",
+            "bootleg",
+            "rework",
+            "flip",
+            "version",
+            "remaster",
+            "extended",
+            "club",
+            "dub",
+            "vip",
+        ]
+        if not any(ind in first_part for ind in remix_indicators):
+            name = first_part
+    
+    # Remove parenthetical remix info but KEEP other parenthetical content that's part of the title
+    # e.g., "A Bar Song (Tipsy)" should keep "(Tipsy)" as it's part of the title
+    # but "Bad Guy (Tiesto Remix)" should remove "(Tiesto Remix)"
+    
+    # Only remove parentheses if they contain remix-related words
+    def remove_remix_parens(match):
+        content = match.group(1).lower()
+        remix_words = ["remix", "rmx", "mix", "edit", "bootleg", "rework", "flip", "version", "remaster", "extended", "club", "radio", "vip", "dub"]
+        if any(word in content for word in remix_words):
+            return ""
+        return match.group(0)  # Keep the parenthetical content
+    
+    name = re.sub(r'\s*\(([^)]+)\)', remove_remix_parens, name)
+    name = re.sub(r'\s*\[([^\]]+)\]', remove_remix_parens, name)
+    
+    # Clean up
+    name = re.sub(r'\s+', ' ', name).strip()
+    
+    return name
+
+
+def normalize_artist(artist_name: str) -> str:
+    """Normalize an artist name for safer matching (lowercase, strip punctuation, collapse spaces)."""
+    if not artist_name:
+        return ""
+    artist_name = artist_name.lower().strip()
+    # Remove punctuation that often varies in credits (e.g., A$AP Rocky / ASAP Rocky)
+    artist_name = re.sub(r"[^a-z0-9\s]", " ", artist_name)
+    artist_name = re.sub(r"\s+", " ", artist_name).strip()
+    return artist_name
+
+
+def artist_tokens(name: str) -> set[str]:
+    """Tokenize artist name; avoids substring matching bugs (e.g., 'ram' matching 'rema')."""
+    norm = normalize_artist(name)
+    if not norm:
+        return set()
+    tokens = set(norm.split())
+    # remove very common tokens that don't help identify an artist
+    tokens -= {"the", "dj", "mc"}
+    return tokens
+
+
 def calculate_match_confidence(original_name, original_artists, remix_track):
     """
-    Calculate a confidence score (0-100) for how well a remix matches the original.
+    Calculate a confidence score for how well a remix matches the original track.
     
-    IMPORTANT: Only returns positive score if track contains remix keywords.
-    This ensures we only show actual remixes, not original songs.
-    
-    Factors:
-    - MUST contain "remix" or similar keyword (required)
-    - Track name similarity
-    - Artist overlap (original artist featured or credited)
+    STRICT MATCHING RULES:
+    1. For single-word titles like "Why", "Alien", "Tipsy" - ONLY exact matches allowed
+    2. The remix must be OF the original song, not just contain the word
+    3. Artist verification is required for weak matches
     """
     remix_name = remix_track["name"].lower()
-    original_name_lower = original_name.lower().strip()
-    remix_artists = [a["name"].lower() for a in remix_track["artists"]]
-    original_artists_lower = [a.lower() for a in original_artists]
+    original_normalized = normalize_title(original_name)
+    remix_artists = [a["name"] for a in remix_track["artists"]]
+    original_artists_lower = [a for a in original_artists]
     
-    score = 0
-    reasons = []
-    
-    # CRITICAL: Must contain remix keyword - this is REQUIRED
-    remix_keywords = ["remix", "remixed", "rmx", "bootleg", "rework", "flip", "vip mix", "club mix", "radio edit"]
-    has_remix_keyword = any(keyword in remix_name for keyword in remix_keywords)
+    # STEP 1: Must contain a *version* keyword.
+    # We accept a careful set of DJ-usable alternates in addition to explicit remixes.
+    # This is intentionally conservative: title + artist checks do the real filtering.
+    version_keywords = [
+        # explicit remixes/edits
+        "remix",
+        "remixed",
+        "rmx",
+        "edit",
+        "bootleg",
+        "rework",
+        "flip",
+        "version",
+        # DJ-friendly alternates
+        "extended mix",
+        "extended",
+        "club mix",
+        "club",
+        "dub mix",
+        "dub",
+        "vip",
+        "vip mix",
+        "radio edit",
+    ]
+    has_remix_keyword = any(keyword in remix_name for keyword in version_keywords)
     
     if not has_remix_keyword:
-        # Not a remix - return 0 score
-        return 0, ["not_a_remix"]
+        return 0, ["not_a_version"]
     
-    reasons.append("is_remix")
-    score += 30  # Base score for being a remix
+    # STEP 2: Extract the base title from the remix
+    remix_base = extract_remix_base_title(remix_name)
     
-    # Check if this is the exact same song (not a remix of it)
-    # If the track name is almost identical and same primary artist, skip it
-    if remix_name.replace(" ", "") == original_name_lower.replace(" ", ""):
-        return 0, ["same_song"]
+    # STEP 3: Compare titles - this is the CRITICAL check
+    score = 0
+    reasons = ["is_remix"]
     
-    # Extract core song title from remix name (before the dash/hyphen where remix info usually starts)
-    # e.g., "still - ndinga gaba remix" → "still"
-    remix_core = remix_name.split(" - ")[0].strip() if " - " in remix_name else remix_name
+    # Get word sets for comparison
+    original_words = set(original_normalized.split())
+    remix_words = set(remix_base.split())
     
-    # 1. Name similarity (0-35 points)
-    # Check if original name appears in remix name
-    if original_name_lower in remix_name:
-        score += 35
-        reasons.append("name_match")
-    # Check if remix core matches original name
-    elif original_name_lower == remix_core or original_name_lower in remix_core or remix_core in original_name_lower:
-        score += 35
-        reasons.append("core_name_match")
-    # Check if remix starts with the original name
-    elif remix_name.startswith(original_name_lower) or remix_core.startswith(original_name_lower):
-        score += 30
-        reasons.append("starts_with_original")
-    else:
-        # Fuzzy match - check words
-        original_words = set(original_name_lower.split())
-        remix_words = set(remix_core.split())
-        # Remove common filler words
-        filler_words = {"the", "a", "an", "of", "and", "or", "to", "in", "on", "at", "for"}
-        original_words -= filler_words
-        remix_words -= filler_words
+    stop_words = {"the", "a", "an", "of", "and", "or", "to", "in", "on", "at", "for", "is", "it", "my", "your", "i", "you", "me", "we"}
+    original_significant = original_words - stop_words
+    remix_significant = remix_words - stop_words
+    
+    # Fallback if all words are stop words
+    if not original_significant:
+        original_significant = original_words
+    if not remix_significant:
+        remix_significant = remix_words
+    
+    # CRITICAL: Determine if this is a "short title" (1-2 significant words)
+    # Short titles like "Why", "Alien", "Bad Guy" need STRICT matching
+    is_short_title = len(original_significant) <= 2
+    
+    # Method 1: Exact match (best case)
+    if original_normalized == remix_base:
+        score += 50
+        reasons.append("exact_title_match")
+    
+    # Method 2: Exact word match (handles punctuation differences)
+    elif original_significant == remix_significant:
+        score += 48
+        reasons.append("exact_words_match")
+    
+    # Method 3: For SHORT titles, be VERY strict - no fuzzy matching
+    elif is_short_title:
+        # The remix title words must EXACTLY match original words
+        # "Why" should NOT match "Why Can't It Wait Till Morning"
+        # But "Why" SHOULD match "Why - Club Remix" (remix_base would be "why")
         
-        if original_words and remix_words:
-            overlap = len(original_words & remix_words)
-            if overlap >= len(original_words):  # All original words found
-                score += 30
-                reasons.append("full_word_match")
-            elif overlap >= 1:
-                score += 15 + (overlap * 5)  # 20-25 points based on overlap
-                reasons.append("partial_word_match")
+        # Allow only if remix has at most 1 extra word
+        if original_significant <= remix_significant:
+            extra_words = len(remix_significant - original_significant)
+            if extra_words == 0:
+                score += 45
+                reasons.append("short_title_exact")
+            elif extra_words == 1:
+                # Only allow 1 extra word if original is 2+ words
+                if len(original_significant) >= 2:
+                    score += 35
+                    reasons.append("short_title_close")
+                # Single word + 1 extra = too risky, no match
+        # Otherwise: NO MATCH for short titles
     
-    # 2. Artist overlap (0-25 points)
-    # Check if original artist is credited in the remix
-    artist_overlap = any(orig in " ".join(remix_artists) for orig in original_artists_lower)
-    if artist_overlap:
-        score += 25
-        reasons.append("artist_match")
+    # Method 4: For LONGER titles (3+ words), allow more flexibility
     else:
-        # Check if original artist mentioned in track name (feat. situations)
-        if any(orig in remix_name for orig in original_artists_lower):
-            score += 15
-            reasons.append("artist_in_title")
+        overlap = original_significant & remix_significant
+        overlap_ratio = len(overlap) / len(original_significant) if original_significant else 0
+        
+        if overlap_ratio >= 0.8:
+            score += 45
+            reasons.append("high_word_overlap")
+        elif overlap_ratio >= 0.6 and len(overlap) >= 2:
+            score += 35
+            reasons.append("good_word_overlap")
+        elif overlap_ratio >= 0.5 and len(overlap) >= 3:
+            score += 25
+            reasons.append("moderate_word_overlap")
+        # Lower overlap = no match
+    
+    # If no title match found, reject immediately
+    if score == 0:
+        return 0, ["title_mismatch"]
+    
+    # STEP 4: Artist verification (STRICT)
+    # We want to be careful here: Spotify search returns lots of noisy matches.
+    # A real remix usually credits the original artist OR the remix is by the original artist.
+    remix_artist_text = normalize_artist(" ".join(remix_artists))
+    remix_artist_token_set = set()
+    for a in remix_artists:
+        remix_artist_token_set |= artist_tokens(a)
+
+    original_artist_token_sets = [artist_tokens(a) for a in original_artists_lower]
+    original_artist_token_sets = [s for s in original_artist_token_sets if s]
+
+    # Token overlap is safer than substring matching.
+    def has_artist_token_overlap() -> bool:
+        for orig_tokens in original_artist_token_sets:
+            if orig_tokens and (orig_tokens <= remix_artist_token_set):
+                return True
+            if orig_tokens and len(orig_tokens & remix_artist_token_set) >= max(1, min(2, len(orig_tokens))):
+                return True
+        return False
+
+    artist_credited = has_artist_token_overlap()
+    # Artist mentioned in title (rare but happens). Use normalized form + word boundaries.
+    artist_in_title = False
+    for orig in original_artists_lower:
+        o = normalize_artist(orig)
+        if not o or len(o) < 3:
+            continue
+        if re.search(rf"\b{re.escape(o)}\b", normalize_artist(remix_name)):
+            artist_in_title = True
+            break
+    
+    if artist_credited:
+        score += 25
+        reasons.append("artist_credited")
+    elif artist_in_title:
+        score += 15
+        reasons.append("artist_in_title")
+    else:
+        # If we can't connect the remix to the original artist at all, we should be conservative.
+        # Allow ONLY when title match is extremely strong (exact match); otherwise reject.
+        if "exact_title_match" in reasons or "exact_words_match" in reasons:
+            score -= 10
+            reasons.append("no_artist_penalty")
+        else:
+            return 0, ["no_artist_link"]
+    
+    # STEP 5: Final sanity check with sequence similarity
+    seq_ratio = SequenceMatcher(None, original_normalized, remix_base).ratio()
+    
+    # For short titles, require higher similarity
+    if is_short_title and seq_ratio < 0.5 and score < 60:
+        return 0, ["short_title_low_similarity"]
+    
+    # For any title, very low similarity is a red flag
+    if seq_ratio < 0.25 and score < 50:
+        return 0, ["low_similarity"]
     
     return min(100, score), reasons
 
@@ -112,6 +410,16 @@ def get_playlist(url):
     from spotipy.exceptions import SpotifyException
     
     playlist_id = get_playlist_id(url)
+    
+    logger.info(f"Extracted playlist ID: {playlist_id}")
+    
+    # Check if this is a Spotify-generated playlist (known limitation)
+    # These IDs start with '37i9dQZF1' (Daily Mix, Discover Weekly, etc.)
+    is_spotify_generated = playlist_id and playlist_id.startswith('37i9dQZF1')
+    if is_spotify_generated:
+        logger.warning(f"Spotify-generated playlist detected: {playlist_id}")
+        raise ValueError("Spotify-generated playlists (like Daily Mix, Discover Weekly, or artist \"This Is\" playlists) aren't accessible via the API. Please use a playlist you or someone else created.")
+    
     pattern = re.compile(r"\(.*?\)")
     sp = get_spotify_client()
     track_details = {}
@@ -121,9 +429,21 @@ def get_playlist(url):
     try:
         data = sp.playlist(playlist_id)
     except SpotifyException as e:
+        logger.error(f"SpotifyException for playlist {playlist_id}: {e.http_status} - {str(e)}")
         if e.http_status == 404:
+            # Double-check for Spotify-generated playlists that slipped through
+            if playlist_id and playlist_id.startswith('37i'):
+                raise ValueError("This appears to be a Spotify-generated playlist which isn't accessible via the API. Please use a playlist you or someone else created.")
             raise ValueError("This playlist is private or doesn't exist. Please use a public playlist.")
-        raise ValueError(f"Unable to access playlist: {str(e)}")
+        elif e.http_status == 401:
+            raise ValueError("Authentication error. Please try again later.")
+        elif e.http_status == 403:
+            raise ValueError("Access denied. This playlist may be restricted.")
+        else:
+            raise ValueError("Unable to load this playlist. Please check the link and try again.")
+    except Exception as e:
+        logger.error(f"Unexpected error fetching playlist {playlist_id}: {str(e)}", exc_info=True)
+        raise ValueError("Unable to load this playlist. Please try again.")
     
     track_details["playlist_name"] = data["name"]
     track_details["playlist_image"] = data["images"][0]["url"] if data["images"] else None
@@ -144,12 +464,9 @@ def get_playlist(url):
             continue
             
         name = track["name"]
-        # Clean name - remove parenthetical content for better searching
-        clean_name = re.sub(pattern, "", name).strip()
-        
-        # Remove common suffixes that pollute search (e.g., "- Bonus", "- Deluxe Edition")
-        suffix_pattern = r'\s*[-–—]\s*(bonus|deluxe|remaster(ed)?|anniversary|edition|version|extended|original|radio|single|album|live|acoustic|instrumental|explicit|clean)(\s+\w+)*\s*$'
-        clean_name = re.sub(suffix_pattern, "", clean_name, flags=re.IGNORECASE).strip()
+        # Clean name for searching: strip remix/mix/edit/version/remaster/etc.
+        # Important for cases where the source track is *already* a remix/edit.
+        clean_name = normalize_title(name)
         
         artists = [artist["name"] for artist in track.get("artists", [])]
         tracks.append({
@@ -183,23 +500,109 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
     if original_track_id:
         seen_ids.add(original_track_id)
     
-    # Optimized: Only 2 queries, best one first
-    search_queries = [
-        f"{track['clean_name']} {track['artists'][0]} remix",
-        f"{track['clean_name']} remix",
+    # Build a base title for searching even if the playlist track is already a remix/edit.
+    # Example: "Fall For You (Sandy Rivera's Classic Mix) - Moodymann Edit" -> "fall for you"
+    base_title = normalize_title(track.get("original_name") or track.get("clean_name") or "")
+    primary_artist = (track.get("artists") or [""])[0]
+    # If the original track name contains mix/remix/edit markers, it's a hint that the playlist track might
+    # itself be a *version*.
+    # In that case: do a reverse lookup to find the *canonical/original* song first, then search alternates.
+    original_name_lc = (track.get("original_name") or "").lower()
+    original_already_versioned = any(w in original_name_lc for w in version_hint_words)
+
+    version_hint_words = [
+        "remix",
+        "remixed",
+        "rmx",
+        "edit",
+        "rework",
+        "bootleg",
+        "flip",
+        "mix",
+        "version",
+        "extended",
+        "club",
+        "radio",
+        "dub",
+        "vip",
     ]
+
+    def resolve_canonical_track_id(title: str, artist: str) -> tuple[str | None, str]:
+        """Best-effort resolve of the canonical/original track for a versioned source.
+
+        Returns (track_id, canonical_title). canonical_title may fall back to the input title.
+        Kept intentionally conservative to avoid extra noisy API calls.
+        """
+        if not title or not artist:
+            return None, title
+
+        # Use only documented field filters; then do deterministic post-filtering below.
+        query = f"track:{title} artist:{artist}"
+        try:
+            res = sp.search(query, type="track", limit=20)
+        except Exception:
+            return None, title
+
+        items = (res.get("tracks") or {}).get("items") or []
+        if not items:
+            return None, title
+
+        best_item = choose_best_canonical_track(
+            wanted_title_norm=title,
+            wanted_artist=artist,
+            items=items,
+        )
+        if best_item:
+            canonical_title = normalize_title(best_item.get("name") or title)
+            return best_item.get("id"), canonical_title
+
+        # If nothing passes gates, fall back.
+        return None, title
+
+    # Reverse lookup: attempt to use the canonical/original track as the search seed.
+    search_seed_title = base_title
+    canonical_track_id = None
+    if original_already_versioned:
+        canonical_track_id, canonical_title = resolve_canonical_track_id(base_title, primary_artist)
+        if canonical_title:
+            search_seed_title = canonical_title
+        if canonical_track_id:
+            seen_ids.add(canonical_track_id)
+
+    # IMPORTANT: when the playlist track is already a version (mix/edit/etc), we still want to match
+    # candidates against the canonical/base title, not the full versioned title.
+    match_original_title = search_seed_title if original_already_versioned else (track.get("clean_name") or base_title)
+
+    # Search strategy (ordered):
+    # 1) Base title + primary artist + remix (best precision)
+    # 2) Base title + remix
+    # 3) Base title + primary artist (fallback to collect versioned titles; scoring will filter to remixes)
+    # 4) If original already includes remix-ish words, also try "version" queries.
+    search_queries = [
+        f"{search_seed_title} {primary_artist} remix",
+        f"{search_seed_title} remix",
+        f"{search_seed_title} {primary_artist}",
+    ]
+    if original_already_versioned:
+        search_queries.extend(
+            [
+                f"{search_seed_title} {primary_artist} mix",
+                f"{search_seed_title} {primary_artist} edit",
+                f"{search_seed_title} {primary_artist} version",
+            ]
+        )
     
     for query in search_queries:
         try:
             # Increased limit to 10 to get more candidates per query
-            results = sp.search(query, type="track", limit=10, market="US")
+            results = sp.search(query, type="track", limit=10)
             for item in results["tracks"]["items"]:
                 if item["id"] in seen_ids:
                     continue
                     
                 seen_ids.add(item["id"])
                 confidence, reasons = calculate_match_confidence(
-                    track["clean_name"],
+                    match_original_title,
                     track["artists"],
                     item
                 )
@@ -242,6 +645,8 @@ def preview_remixes(self, url):
     
     OPTIMIZED: Uses parallel processing with ThreadPoolExecutor for ~5x faster results.
     """
+    from spotipy.exceptions import SpotifyException
+    
     logger.info(f"Starting preview_remixes task - URL: {url}, Task ID: {self.request.id}")
     
     try:
@@ -257,9 +662,22 @@ def preview_remixes(self, url):
             "total_tracks": total_tracks,
             "tracks": []
         }
-    except Exception as e:
-        logger.error(f"Error ingesting playlist from URL {url}: {str(e)}", exc_info=True)
+    except ValueError as e:
+        # User-friendly errors from get_playlist
+        logger.warning(f"Validation error for URL {url}: {str(e)}")
         raise
+    except SpotifyException as e:
+        # Catch any Spotify errors that weren't handled in get_playlist
+        logger.error(f"Spotify API error for URL {url}: {str(e)}", exc_info=True)
+        if e.http_status == 404:
+            raise ValueError("This playlist is private or doesn't exist. Please use a public playlist.")
+        elif e.http_status == 429:
+            raise ValueError("Too many requests. Please try again in a moment.")
+        else:
+            raise ValueError("Unable to load this playlist. Please check the link and try again.")
+    except Exception as e:
+        logger.error(f"Unexpected error ingesting playlist from URL {url}: {str(e)}", exc_info=True)
+        raise ValueError("Something went wrong. Please try again.")
     
     # Process tracks in parallel for significant speedup
     # Use 5 workers to balance speed vs API rate limits
@@ -410,38 +828,3 @@ def create_remix_playlist(self, playlist_name, selected_tracks, original_url):
         "name": playlist_details["name"],
         "track_count": len(selected_tracks)
     }
-
-
-# Keep legacy function for backwards compatibility
-@shared_task(bind=True)
-def create_remix(self, url):
-    """Legacy: Direct remix creation without preview. Uses central account."""
-    sp = get_spotify_client()
-    playlist_info, tracks, _ = get_playlist(url)
-    track_ids = []
-    progress_recorder = ProgressRecorder(self)
-    
-    for index, track in enumerate(tracks):
-        candidates = find_remix_candidates(sp, track, num_candidates=1)
-        if candidates and candidates[0]["confidence_level"] in ["high", "medium"]:
-            track_ids.append(candidates[0]["id"])
-        progress_recorder.set_progress(index + 1, len(tracks))
-    
-    user_id = sp.me()["id"]
-    playlist = sp.user_playlist_create(
-        user_id, 
-        name=f"{playlist_info['playlist_name']} (Remixed)",
-        public=True,
-        description="Curated by Remixify with your help."
-    )
-    
-    playlist_id = playlist["id"]
-    
-    if len(track_ids) > 100:
-        for chunk in chunker(track_ids):
-            sp.user_playlist_add_tracks(user_id, playlist_id, chunk)
-    else:
-        sp.user_playlist_add_tracks(user_id, playlist_id, track_ids)
-    
-    playlist_details = sp.user_playlist(user_id, playlist_id)
-    return playlist_details["external_urls"]["spotify"]
