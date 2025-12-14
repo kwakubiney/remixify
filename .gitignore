@@ -124,3 +124,6 @@ Thumbs.db
 
 # Local Copilot workspace instructions (do not commit)
 .github/copilot-instructions.md
+
+# Runtime logs (do not commit)
+logs/
