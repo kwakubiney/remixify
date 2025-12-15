@@ -7,8 +7,75 @@ from tasks.tasks import preview_remixes, create_remix_playlist
 from tasks.models import CreatedPlaylist
 from tasks.helpers import get_playlist_id
 from celery.result import AsyncResult
+from authentication.oauth import get_spotify_client
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_spotify_track_id(value: str) -> str | None:
+    """Extract a Spotify track ID from a URL/URI/ID string."""
+    if not value:
+        return None
+
+    raw = (value or "").strip()
+    if not raw:
+        return None
+
+    if raw.startswith("spotify:track:"):
+        parts = raw.split(":")
+        return parts[-1] if parts else None
+
+    if "/track/" in raw:
+        # e.g. https://open.spotify.com/track/<id>?si=...
+        try:
+            after = raw.split("/track/", 1)[1]
+        except Exception:
+            return None
+        return after.split("?", 1)[0].split("/", 1)[0]
+
+    # If it looks like a bare ID (Spotify IDs are 22 chars base62)
+    if len(raw) == 22 and raw.isalnum():
+        return raw
+
+    return None
+
+
+@csrf_protect
+@require_http_methods(["POST"])
+def resolve_track(request):
+    """Resolve a Spotify track link into canonical metadata for manual curation."""
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    raw = (data.get("url") or data.get("value") or "").strip()
+    track_id = _extract_spotify_track_id(raw)
+    if not track_id:
+        return JsonResponse({"error": "Please paste a Spotify track link"}, status=400)
+
+    try:
+        sp = get_spotify_client()
+        t = sp.track(track_id)
+
+        track = {
+            "id": t.get("id"),
+            "name": t.get("name") or "",
+            "artists": [a.get("name", "") for a in (t.get("artists") or []) if a.get("name")],
+            "album_art": ((t.get("album") or {}).get("images") or [{}])[0].get("url"),
+            "preview_url": t.get("preview_url"),
+            "spotify_url": (t.get("external_urls") or {}).get("spotify", ""),
+            "duration_ms": t.get("duration_ms"),
+            "type": "track",
+        }
+
+        if not track.get("id"):
+            return JsonResponse({"error": "Track not found"}, status=404)
+
+        return JsonResponse({"track": track})
+    except Exception as e:
+        logger.error(f"Error resolving track '{raw}': {str(e)}", exc_info=True)
+        return JsonResponse({"error": "Failed to resolve track"}, status=500)
 
 
 @csrf_protect
