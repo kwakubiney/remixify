@@ -502,14 +502,6 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
     
     # Build a base title for searching even if the playlist track is already a remix/edit.
     # Example: "Fall For You (Sandy Rivera's Classic Mix) - Moodymann Edit" -> "fall for you"
-    base_title = normalize_title(track.get("original_name") or track.get("clean_name") or "")
-    primary_artist = (track.get("artists") or [""])[0]
-    # If the original track name contains mix/remix/edit markers, it's a hint that the playlist track might
-    # itself be a *version*.
-    # In that case: do a reverse lookup to find the *canonical/original* song first, then search alternates.
-    original_name_lc = (track.get("original_name") or "").lower()
-    original_already_versioned = any(w in original_name_lc for w in version_hint_words)
-
     version_hint_words = [
         "remix",
         "remixed",
@@ -526,6 +518,14 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
         "dub",
         "vip",
     ]
+
+    base_title = normalize_title(track.get("original_name") or track.get("clean_name") or "")
+    primary_artist = (track.get("artists") or [""])[0]
+    # If the original track name contains mix/remix/edit markers, it's a hint that the playlist track might
+    # itself be a *version*.
+    # In that case: do a reverse lookup to find the *canonical/original* song first, then search alternates.
+    original_name_lc = (track.get("original_name") or "").lower()
+    original_already_versioned = any(w in original_name_lc for w in version_hint_words)
 
     def resolve_canonical_track_id(title: str, artist: str) -> tuple[str | None, str]:
         """Best-effort resolve of the canonical/original track for a versioned source.
@@ -684,6 +684,7 @@ def preview_remixes(self, url):
     MAX_WORKERS = 5
     results_dict = {}  # Store results by index to maintain order
     completed_count = 0
+    failed_count = 0
     
     def process_single_track(index, track):
         """Process a single track and return results."""
@@ -715,6 +716,7 @@ def preview_remixes(self, url):
             except Exception:
                 # If a track fails, add empty result
                 index = futures[future]
+                failed_count += 1
                 results_dict[index] = {
                     "original": {
                         "name": tracks[index]["original_name"],
@@ -729,6 +731,13 @@ def preview_remixes(self, url):
             
             completed_count += 1
             progress_recorder.set_progress(completed_count, total_tracks)
+
+    logger.info(
+        "preview_remixes complete: total_tracks=%s processed=%s failed=%s",
+        total_tracks,
+        completed_count,
+        failed_count,
+    )
     
     # Sort results back to original order
     for i in range(total_tracks):

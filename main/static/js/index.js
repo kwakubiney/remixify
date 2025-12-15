@@ -13,9 +13,14 @@ const state = {
     selectedTracks: new Map(), // trackId -> track data
     csrfToken: '',
     currentTaskId: null,
-    // Pagination
-    currentPage: 1,
-    tracksPerPage: 10,
+    // Search & Infinite Scroll
+    searchQuery: '',
+    filteredTracks: [],
+    visibleTracksCount: 20,
+    tracksPerBatch: 20,
+    observer: null,
+    // Filter by confidence
+    activeFilter: null, // 'high', 'medium', 'none', or null for all
     // Audio preview
     audioPlayer: null,
     currentlyPlayingBtn: null,
@@ -52,10 +57,12 @@ const elements = {
     selectAll: document.getElementById('select-all'),
     deselectAll: document.getElementById('deselect-all'),
     selectedCount: document.getElementById('selected-count'),
-    paginationContainer: document.getElementById('pagination'),
-    paginationBottom: document.getElementById('pagination-bottom'),
+    trackSearch: document.getElementById('track-search'),
     trackList: document.getElementById('track-list'),
+    scrollSentinel: document.getElementById('scroll-sentinel'),
     createBtn: document.getElementById('create-btn'),
+    stickyBar: document.getElementById('sticky-bar'),
+    stickySelectedCount: document.getElementById('sticky-selected-count'),
     
     // Phase 3
     successMessage: document.getElementById('success-message'),
@@ -169,8 +176,43 @@ function setupEventListeners() {
     elements.deselectAll.addEventListener('click', deselectAllTracks);
     elements.createBtn.addEventListener('click', handleCreatePlaylist);
     
+    // Search
+    if (elements.trackSearch) {
+        elements.trackSearch.addEventListener('input', (e) => {
+            state.searchQuery = e.target.value;
+            filterTracks();
+        });
+    }
+    
+    // Stat card filters
+    setupStatCardFilters();
+    
     // Phase 3: New playlist
     elements.newPlaylistBtn.addEventListener('click', goToPhase1);
+}
+
+function setupStatCardFilters() {
+    const statCards = document.querySelectorAll('.stat-card');
+    statCards.forEach(card => {
+        card.addEventListener('click', () => {
+            const filterType = card.classList.contains('stat-high') ? 'high' :
+                               card.classList.contains('stat-medium') ? 'medium' :
+                               card.classList.contains('stat-none') ? 'none' : null;
+            
+            // Toggle filter
+            if (state.activeFilter === filterType) {
+                state.activeFilter = null;
+                card.classList.remove('active');
+            } else {
+                // Remove active from all cards
+                statCards.forEach(c => c.classList.remove('active'));
+                state.activeFilter = filterType;
+                card.classList.add('active');
+            }
+            
+            filterTracks();
+        });
+    });
 }
 
 // ============ PHASE 1: Preview ============
@@ -342,117 +384,136 @@ function renderTrackSelection(result) {
         }
     });
     
-    // Reset pagination and render
-    state.currentPage = 1;
-    renderCurrentPage();
-    renderPagination();
+    // Initialize search and infinite scroll
+    state.searchQuery = '';
+    state.filteredTracks = [...state.tracks];
+    state.visibleTracksCount = state.tracksPerBatch;
+    
+    // Clear search input
+    if (elements.trackSearch) {
+        elements.trackSearch.value = '';
+    }
+    
+    renderTrackList();
+    setupInfiniteScroll();
     updateSelectedCount();
 }
 
-function renderCurrentPage() {
-    const startIndex = (state.currentPage - 1) * state.tracksPerPage;
-    const endIndex = startIndex + state.tracksPerPage;
-    const tracksToRender = state.tracks.slice(startIndex, endIndex);
+function filterTracks() {
+    const query = state.searchQuery.toLowerCase().trim();
+    
+    // Start with all tracks
+    let filtered = [...state.tracks];
+    
+    // Apply confidence filter
+    if (state.activeFilter) {
+        filtered = filtered.filter(track => {
+            if (state.activeFilter === 'high') {
+                return track.best_match && track.best_match.confidence_level === 'high';
+            } else if (state.activeFilter === 'medium') {
+                return track.best_match && track.best_match.confidence_level === 'medium';
+            } else if (state.activeFilter === 'none') {
+                return !track.best_match;
+            }
+            return true;
+        });
+    }
+    
+    // Apply search filter
+    if (query) {
+        filtered = filtered.filter(track => {
+            const originalName = (track.original.name || '').toLowerCase();
+            const originalArtist = (track.original.artists.join(' ') || '').toLowerCase();
+            const remixName = track.best_match ? (track.best_match.name || '').toLowerCase() : '';
+            const remixArtist = track.best_match ? (track.best_match.artists.join(' ') || '').toLowerCase() : '';
+            
+            return originalName.includes(query) || 
+                   originalArtist.includes(query) || 
+                   remixName.includes(query) || 
+                   remixArtist.includes(query);
+        });
+    }
+    
+    state.filteredTracks = filtered;
+    
+    // Reset visible count when filter changes
+    state.visibleTracksCount = state.tracksPerBatch;
+    renderTrackList();
+}
+
+function renderTrackList() {
+    const tracksToRender = state.filteredTracks.slice(0, state.visibleTracksCount);
     
     elements.trackList.innerHTML = '';
     
-    tracksToRender.forEach((track, localIndex) => {
-        const globalIndex = startIndex + localIndex;
-        const card = createTrackCard(track, globalIndex);
-        elements.trackList.appendChild(card);
-    });
-    
-    // Scroll to top of track list
-    elements.trackList.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function renderPagination() {
-    const totalPages = Math.ceil(state.tracks.length / state.tracksPerPage);
-    
-    if (totalPages <= 1) {
-        elements.paginationContainer.style.display = 'none';
-        elements.paginationBottom.style.display = 'none';
+    if (tracksToRender.length === 0) {
+        elements.trackList.innerHTML = `
+            <div class="no-results">
+                <p>No tracks found matching "${state.searchQuery}"</p>
+            </div>
+        `;
         return;
     }
     
-    elements.paginationContainer.style.display = 'flex';
-    elements.paginationBottom.style.display = 'flex';
+    tracksToRender.forEach((track, index) => {
+        const realIndex = state.tracks.indexOf(track);
+        const card = createTrackCard(track, realIndex);
+        elements.trackList.appendChild(card);
+    });
     
-    let html = '';
-    
-    // Previous button
-    html += `
-        <button class="pagination-btn nav-btn" ${state.currentPage === 1 ? 'disabled' : ''} data-page="${state.currentPage - 1}">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M15 18l-6-6 6-6"/>
-            </svg>
-            Prev
-        </button>
-    `;
-    
-    // Page numbers
-    const maxVisiblePages = 5;
-    let startPage = Math.max(1, state.currentPage - Math.floor(maxVisiblePages / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-    
-    // Adjust start if we're near the end
-    if (endPage - startPage < maxVisiblePages - 1) {
-        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    // Update sentinel visibility
+    if (state.visibleTracksCount >= state.filteredTracks.length) {
+        elements.scrollSentinel.style.display = 'none';
+    } else {
+        elements.scrollSentinel.style.display = 'block';
+    }
+}
+
+function setupInfiniteScroll() {
+    if (state.observer) {
+        state.observer.disconnect();
     }
     
-    if (startPage > 1) {
-        html += `<button class="pagination-btn" data-page="1">1</button>`;
-        if (startPage > 2) {
-            html += `<span class="pagination-info">...</span>`;
-        }
-    }
-    
-    for (let i = startPage; i <= endPage; i++) {
-        html += `
-            <button class="pagination-btn ${i === state.currentPage ? 'active' : ''}" data-page="${i}">
-                ${i}
-            </button>
-        `;
-    }
-    
-    if (endPage < totalPages) {
-        if (endPage < totalPages - 1) {
-            html += `<span class="pagination-info">...</span>`;
-        }
-        html += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
-    }
-    
-    // Next button
-    html += `
-        <button class="pagination-btn nav-btn" ${state.currentPage === totalPages ? 'disabled' : ''} data-page="${state.currentPage + 1}">
-            Next
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 18l6-6-6-6"/>
-            </svg>
-        </button>
-    `;
-    
-    // Apply to both pagination containers
-    elements.paginationContainer.innerHTML = html;
-    elements.paginationBottom.innerHTML = html;
-    
-    // Add event listeners to both
-    const addPaginationListeners = (container) => {
-        container.querySelectorAll('.pagination-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const page = parseInt(btn.dataset.page);
-                if (page && page !== state.currentPage && page >= 1 && page <= totalPages) {
-                    state.currentPage = page;
-                    renderCurrentPage();
-                    renderPagination();
-                }
-            });
-        });
+    const options = {
+        root: null,
+        rootMargin: '100px',
+        threshold: 0.1
     };
     
-    addPaginationListeners(elements.paginationContainer);
-    addPaginationListeners(elements.paginationBottom);
+    state.observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                loadMoreTracks();
+            }
+        });
+    }, options);
+    
+    if (elements.scrollSentinel) {
+        state.observer.observe(elements.scrollSentinel);
+    }
 }
+
+function loadMoreTracks() {
+    if (state.visibleTracksCount >= state.filteredTracks.length) return;
+    
+    const currentCount = state.visibleTracksCount;
+    const nextCount = Math.min(currentCount + state.tracksPerBatch, state.filteredTracks.length);
+    const newTracks = state.filteredTracks.slice(currentCount, nextCount);
+    
+    newTracks.forEach((track) => {
+        const realIndex = state.tracks.indexOf(track);
+        const card = createTrackCard(track, realIndex);
+        elements.trackList.appendChild(card);
+    });
+    
+    state.visibleTracksCount = nextCount;
+    
+    if (state.visibleTracksCount >= state.filteredTracks.length) {
+        elements.scrollSentinel.style.display = 'none';
+    }
+}
+
+
 
 function createTrackCard(track, index) {
     const card = document.createElement('div');
@@ -682,13 +743,13 @@ function toggleMoreOptions(index) {
 }
 
 function selectAllHighConfidence() {
-    // Select all high confidence across ALL tracks, not just current page
+    // Select all high confidence across ALL tracks
     state.tracks.forEach((track) => {
         if (track.best_match && track.best_match.confidence_level === 'high') {
             state.selectedTracks.set(track.best_match.id, track.best_match);
         }
     });
-    renderCurrentPage(); // Re-render to update checkboxes
+    updateVisibleTracksSelection();
     updateSelectedCount();
 }
 
@@ -699,14 +760,37 @@ function selectAllTracks() {
             state.selectedTracks.set(track.best_match.id, track.best_match);
         }
     });
-    renderCurrentPage();
+    updateVisibleTracksSelection();
     updateSelectedCount();
 }
 
 function deselectAllTracks() {
     state.selectedTracks.clear();
-    renderCurrentPage();
+    updateVisibleTracksSelection();
     updateSelectedCount();
+}
+
+function updateVisibleTracksSelection() {
+    const cards = elements.trackList.querySelectorAll('.track-card');
+    cards.forEach(card => {
+        const index = parseInt(card.dataset.index);
+        const track = state.tracks[index];
+        if (track && track.best_match) {
+            const isSelected = state.selectedTracks.has(track.best_match.id);
+            const checkbox = card.querySelector('.remix-checkbox');
+            const remixOption = card.querySelector('.remix-option');
+            
+            if (isSelected) {
+                card.classList.add('selected');
+                if (remixOption) remixOption.classList.add('selected');
+                if (checkbox) checkbox.checked = true;
+            } else {
+                card.classList.remove('selected');
+                if (remixOption) remixOption.classList.remove('selected');
+                if (checkbox) checkbox.checked = false;
+            }
+        }
+    });
 }
 
 function updateSelectedCount() {
@@ -714,8 +798,22 @@ function updateSelectedCount() {
     elements.selectedCount.textContent = count;
     elements.createBtn.disabled = count === 0;
     elements.createBtn.querySelector('span').textContent = count === 0 
-        ? 'Select tracks to continue' 
-        : `Create Playlist (${count} tracks)`;
+        ? 'Select tracks' 
+        : `Create Playlist (${count})`;
+    
+    // Update sticky bar
+    if (elements.stickySelectedCount) {
+        elements.stickySelectedCount.textContent = count;
+    }
+    
+    // Show/hide sticky bar based on selection
+    if (elements.stickyBar) {
+        if (count > 0) {
+            elements.stickyBar.classList.add('visible');
+        } else {
+            elements.stickyBar.classList.remove('visible');
+        }
+    }
 }
 
 // ============ PHASE 3: Create Playlist ============
@@ -876,6 +974,15 @@ function goToPhase1() {
     elements.urlInput.value = '';
     state.tracks = [];
     state.selectedTracks.clear();
+    state.activeFilter = null;
+    
+    // Hide sticky bar
+    if (elements.stickyBar) {
+        elements.stickyBar.classList.remove('visible');
+    }
+    
+    // Reset stat card active states
+    document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
 }
 
 function goToPhase2() {
@@ -891,6 +998,11 @@ function goToPhase3() {
     elements.phaseInput.style.display = 'none';
     elements.phaseSelection.style.display = 'none';
     elements.phaseSuccess.style.display = 'flex';
+    
+    // Hide sticky bar
+    if (elements.stickyBar) {
+        elements.stickyBar.classList.remove('visible');
+    }
 }
 
 // ============ Utilities ============

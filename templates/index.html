@@ -174,33 +174,41 @@
                 </div>
             </div>
 
-            <!-- Bulk Actions -->
-            <div class="bulk-actions">
-                <button id="select-all-high" class="btn-bulk">Select all high matches</button>
-                <button id="select-all" class="btn-bulk">Select all</button>
-                <button id="deselect-all" class="btn-bulk btn-bulk-secondary">Deselect all</button>
-                <span class="selected-count"><span id="selected-count">0</span> tracks selected</span>
-            </div>
-
-            <!-- Pagination -->
-            <div id="pagination" class="pagination" style="display: none;">
-                <!-- Pagination controls will be inserted here -->
+            <!-- Bulk Actions & Search -->
+            <div class="actions-bar">
+                <div class="bulk-actions">
+                    <button id="select-all-high" class="btn-bulk">Select high</button>
+                    <button id="select-all" class="btn-bulk btn-bulk-secondary">Select all</button>
+                    <button id="deselect-all" class="btn-bulk btn-bulk-secondary">Clear</button>
+                    <span id="selected-count" style="display:none;">0</span>
+                </div>
+                
+                <div class="search-wrapper">
+                    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="m21 21-4.35-4.35"/>
+                    </svg>
+                    <input type="text" id="track-search" placeholder="Search tracks..." class="track-search-input">
+                </div>
             </div>
 
             <!-- Track List -->
             <div id="track-list" class="track-list">
                 <!-- Track cards will be inserted here -->
             </div>
-
-            <!-- Pagination Bottom -->
-            <div id="pagination-bottom" class="pagination" style="display: none;">
-                <!-- Bottom pagination controls -->
-            </div>
-
-            <!-- Create Playlist Button -->
-            <div class="create-section">
+            
+            <!-- Loading Sentinel for Infinite Scroll -->
+            <div id="scroll-sentinel" class="scroll-sentinel"></div>
+        </div>
+        
+        <!-- Sticky Bottom Bar -->
+        <div id="sticky-bar" class="sticky-bar">
+            <div class="sticky-bar-content">
+                <div class="sticky-bar-info">
+                    <span class="sticky-count"><span id="sticky-selected-count">0</span> remixes selected</span>
+                </div>
                 <button id="create-btn" class="btn-create" disabled>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M12 5v14M5 12h14"/>
                     </svg>
                     <span>Create Playlist</span>
