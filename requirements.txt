@@ -15,7 +15,7 @@ defusedxml==0.7.1
 Deprecated==1.2.13
 dj-database-url==0.5.0
 Django>=5.1
-django-allauth==0.50.0
+django-allauth==65.13.0
 django-celery-results
 django-debug-toolbar
 gunicorn==20.1.0
