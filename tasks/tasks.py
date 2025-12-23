@@ -713,10 +713,10 @@ def preview_remixes(self, url):
         logger.error(f"[DEBUG] Unexpected exception in preview_remixes: {type(e).__name__}: {str(e)}", exc_info=True)
         raise ValueError("Something went wrong. Please try again.")
     
-    # Process tracks in parallel for significant speedup
-    # REDUCED to 2 workers to avoid Spotify rate limiting (429 errors)
-    # With 5 workers, all threads get rate-limited simultaneously and hang
-    MAX_WORKERS = 2
+    # Process tracks SEQUENTIALLY to avoid thread-safety issues with shared Spotify client
+    # The sp client's connection pool may hang when used from multiple threads
+    # TODO: Once this works, create separate sp client per thread for parallelism
+    MAX_WORKERS = 1  # Sequential for now
     results_dict = {}  # Store results by index to maintain order
     completed_count = 0
     failed_count = 0
