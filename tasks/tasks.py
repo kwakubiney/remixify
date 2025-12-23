@@ -716,6 +716,18 @@ def preview_remixes(self, url):
     completed_count = 0
     failed_count = 0
     
+    # CRITICAL: Warm up the token before parallel processing
+    # Spotipy's token refresh is NOT thread-safe - if multiple threads try to refresh
+    # simultaneously, it causes a deadlock. Force the token refresh now (single-threaded)
+    # so all worker threads use the cached token.
+    logger.info("[DEBUG] Warming up Spotify token before parallel processing...")
+    try:
+        sp.current_user()  # This forces token refresh if needed
+        logger.info("[DEBUG] Token warmup successful")
+    except Exception as e:
+        logger.error(f"[DEBUG] Token warmup failed: {type(e).__name__}: {str(e)}")
+        raise ValueError("Failed to authenticate with Spotify. Please try again.")
+    
     logger.info(f"[DEBUG] Starting parallel track processing with {MAX_WORKERS} workers")
     logger.info(f"[DEBUG] Processing {total_tracks} tracks...")
     
