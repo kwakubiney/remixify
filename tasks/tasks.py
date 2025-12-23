@@ -716,7 +716,6 @@ def preview_remixes(self, url):
     # Process tracks SEQUENTIALLY to avoid thread-safety issues with shared Spotify client
     # The sp client's connection pool may hang when used from multiple threads
     # TODO: Once this works, create separate sp client per thread for parallelism
-    MAX_WORKERS = 1  # Sequential for now
     results_dict = {}  # Store results by index to maintain order
     completed_count = 0
     failed_count = 0
@@ -726,57 +725,44 @@ def preview_remixes(self, url):
     # Previously, an extra sp.current_user() call here was triggering Spotify rate limits (429).
     logger.info("[DEBUG] Token already validated via playlist fetch - skipping warmup call")
     
-    logger.info(f"[DEBUG] Starting parallel track processing with {MAX_WORKERS} workers")
+    logger.info("[DEBUG] Starting SEQUENTIAL track processing (no thread pool)")
     logger.info(f"[DEBUG] Processing {total_tracks} tracks...")
     
-    def process_single_track(index, track):
-        """Process a single track and return results."""
-        logger.debug(f"[DEBUG] Processing track {index}: {track.get('original_name', 'Unknown')}")
-        candidates = find_remix_candidates(sp, track, original_track_id=track.get("id"))
-        return index, {
-            "original": {
-                "name": track["original_name"],
-                "artists": track["artists"],
-                "album_art": track["album_art"],
-                "spotify_url": track["spotify_url"]
-            },
-            "candidates": candidates,
-            "best_match": candidates[0] if candidates else None,
-            "has_high_confidence": any(c["confidence_level"] == "high" for c in candidates)
-        }
-    
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        # Submit all tasks
-        futures = {
-            executor.submit(process_single_track, i, track): i 
-            for i, track in enumerate(tracks)
-        }
+    # Simple sequential for loop - no threading at all
+    for i, track in enumerate(tracks):
+        try:
+            logger.info(f"[DEBUG] Processing track {i+1}/{total_tracks}: {track.get('original_name', 'Unknown')[:50]}")
+            candidates = find_remix_candidates(sp, track, original_track_id=track.get("id"))
+            results_dict[i] = {
+                "original": {
+                    "name": track["original_name"],
+                    "artists": track["artists"],
+                    "album_art": track["album_art"],
+                    "spotify_url": track["spotify_url"]
+                },
+                "candidates": candidates,
+                "best_match": candidates[0] if candidates else None,
+                "has_high_confidence": any(c["confidence_level"] == "high" for c in candidates)
+            }
+        except Exception as e:
+            logger.warning(f"[DEBUG] Track {i} failed: {type(e).__name__}: {str(e)[:100]}")
+            failed_count += 1
+            results_dict[i] = {
+                "original": {
+                    "name": track["original_name"],
+                    "artists": track["artists"],
+                    "album_art": track["album_art"],
+                    "spotify_url": track["spotify_url"]
+                },
+                "candidates": [],
+                "best_match": None,
+                "has_high_confidence": False
+            }
         
-        # Collect results as they complete
-        for future in as_completed(futures):
-            try:
-                index, track_result = future.result(timeout=30)
-                results_dict[index] = track_result
-            except Exception:
-                # If a track fails, add empty result
-                index = futures[future]
-                failed_count += 1
-                results_dict[index] = {
-                    "original": {
-                        "name": tracks[index]["original_name"],
-                        "artists": tracks[index]["artists"],
-                        "album_art": tracks[index]["album_art"],
-                        "spotify_url": tracks[index]["spotify_url"]
-                    },
-                    "candidates": [],
-                    "best_match": None,
-                    "has_high_confidence": False
-                }
-            
-            completed_count += 1
-            if completed_count % 10 == 0 or completed_count == 1:
-                logger.info(f"[DEBUG] Progress update: {completed_count}/{total_tracks} tracks processed")
-            progress_recorder.set_progress(completed_count, total_tracks)
+        completed_count += 1
+        if completed_count % 10 == 0 or completed_count == 1:
+            logger.info(f"[DEBUG] Progress update: {completed_count}/{total_tracks} tracks processed")
+        progress_recorder.set_progress(completed_count, total_tracks)
 
     logger.info(
         "preview_remixes complete: total_tracks=%s processed=%s failed=%s",
