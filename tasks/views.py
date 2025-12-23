@@ -222,3 +222,53 @@ def playlist_count(request):
     from tasks.redis_utils import get_playlist_count
     count = get_playlist_count()
     return JsonResponse({"count": count})
+
+
+@require_http_methods(["GET"])
+def debug_spotify_search(request):
+    """
+    DEBUG ENDPOINT: Test Spotify search directly from Django web process.
+    This bypasses Celery entirely to isolate whether hanging is Celery-specific.
+    
+    Usage: GET /api/debug-search/?q=fever+remix
+    """
+    import time
+    query = request.GET.get("q", "fever remix")
+    
+    logger.info(f"[DEBUG] debug_spotify_search called with query: {query}")
+    start_time = time.time()
+    
+    try:
+        logger.info("[DEBUG] Creating Spotify client...")
+        sp = get_spotify_client()
+        logger.info("[DEBUG] Spotify client created, starting search...")
+        
+        results = sp.search(query, type="track", limit=5)
+        elapsed = time.time() - start_time
+        
+        logger.info(f"[DEBUG] Search completed in {elapsed:.2f}s")
+        
+        tracks = []
+        for item in results.get("tracks", {}).get("items", []):
+            tracks.append({
+                "id": item.get("id"),
+                "name": item.get("name"),
+                "artists": [a.get("name") for a in item.get("artists", [])],
+            })
+        
+        return JsonResponse({
+            "status": "success",
+            "query": query,
+            "elapsed_seconds": elapsed,
+            "track_count": len(tracks),
+            "tracks": tracks,
+        })
+    except Exception as e:
+        elapsed = time.time() - start_time
+        logger.error(f"[DEBUG] Search failed after {elapsed:.2f}s: {type(e).__name__}: {str(e)}")
+        return JsonResponse({
+            "status": "error",
+            "query": query,
+            "elapsed_seconds": elapsed,
+            "error": f"{type(e).__name__}: {str(e)}",
+        }, status=500)
