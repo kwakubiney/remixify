@@ -716,37 +716,10 @@ def preview_remixes(self, url):
     completed_count = 0
     failed_count = 0
     
-    # CRITICAL: Warm up the token before parallel processing
-    # Spotipy's token refresh is NOT thread-safe - if multiple threads try to refresh
-    # simultaneously, it causes a deadlock. Force the token refresh now (single-threaded)
-    # so all worker threads use the cached token.
-    logger.info("[DEBUG] Warming up Spotify token before parallel processing...")
-    import signal
-    
-    def timeout_handler(signum, frame):
-        raise TimeoutError("sp.current_user() timed out after 15 seconds")
-    
-    try:
-        # Set a 15 second timeout for the warmup call
-        original_handler = signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(15)
-        
-        logger.info("[DEBUG] Calling sp.current_user() with 15s timeout...")
-        user_info = sp.current_user()
-        
-        signal.alarm(0)  # Cancel the alarm
-        signal.signal(signal.SIGALRM, original_handler)  # Restore original handler
-        
-        logger.info(f"[DEBUG] Token warmup successful - user: {user_info.get('id', 'unknown')}")
-    except TimeoutError as e:
-        signal.alarm(0)
-        logger.error(f"[DEBUG] Token warmup TIMED OUT: {str(e)}")
-        logger.error("[DEBUG] This indicates the Spotify API call is hanging - likely a token refresh issue")
-        raise ValueError("Spotify API is not responding. Please try again in a moment.")
-    except Exception as e:
-        signal.alarm(0)
-        logger.error(f"[DEBUG] Token warmup failed: {type(e).__name__}: {str(e)}")
-        raise ValueError("Failed to authenticate with Spotify. Please try again.")
+    # Token warmup is no longer needed since get_playlist() already made successful API calls.
+    # The token has been cached by CentralAccountCacheHandler and will be reused by all threads.
+    # Previously, an extra sp.current_user() call here was triggering Spotify rate limits (429).
+    logger.info("[DEBUG] Token already validated via playlist fetch - skipping warmup call")
     
     logger.info(f"[DEBUG] Starting parallel track processing with {MAX_WORKERS} workers")
     logger.info(f"[DEBUG] Processing {total_tracks} tracks...")
