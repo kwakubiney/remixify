@@ -36,11 +36,18 @@ class CentralAccountCacheHandler(CacheHandler):
         # If we have a valid cached token, return it
         if CentralAccountCacheHandler._token_cache:
             # Check if token is still valid (with 60s buffer)
-            if CentralAccountCacheHandler._token_cache.get("expires_at", 0) > time.time() + 60:
+            expires_at = CentralAccountCacheHandler._token_cache.get("expires_at", 0)
+            if expires_at > time.time() + 60:
+                logger.info(f"[DEBUG] get_cached_token: Using valid cached token (expires in {int(expires_at - time.time())}s)")
                 return CentralAccountCacheHandler._token_cache
+            else:
+                logger.info(f"[DEBUG] get_cached_token: Cached token expired or expiring soon")
+        else:
+            logger.info("[DEBUG] get_cached_token: No cached token found, will trigger refresh")
         
         # Return a token structure that triggers refresh
         # SpotifyOAuth will use the refresh_token to get a new access_token
+        logger.info("[DEBUG] get_cached_token: Returning expired token structure to trigger refresh")
         return {
             "access_token": None,
             "refresh_token": self.refresh_token,
@@ -50,6 +57,7 @@ class CentralAccountCacheHandler(CacheHandler):
     
     def save_token_to_cache(self, token_info):
         """Save refreshed token to class-level cache."""
+        logger.info(f"[DEBUG] save_token_to_cache: Saving new token (expires_at: {token_info.get('expires_at', 'unknown')})")
         CentralAccountCacheHandler._token_cache = token_info
 
 
