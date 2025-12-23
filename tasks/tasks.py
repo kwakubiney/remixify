@@ -607,7 +607,11 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
             ]
         )
     
-    for query in search_queries:
+    import time as time_module
+    for query_idx, query in enumerate(search_queries):
+        # Small delay between queries to avoid rate limiting (except first query)
+        if query_idx > 0:
+            time_module.sleep(0.2)
         try:
             # Increased limit to 10 to get more candidates per query
             logger.info(f"[DEBUG] [{thread_id}] Starting search: {query[:50]}...")
@@ -710,8 +714,9 @@ def preview_remixes(self, url):
         raise ValueError("Something went wrong. Please try again.")
     
     # Process tracks in parallel for significant speedup
-    # Use 5 workers to balance speed vs API rate limits
-    MAX_WORKERS = 5
+    # REDUCED to 2 workers to avoid Spotify rate limiting (429 errors)
+    # With 5 workers, all threads get rate-limited simultaneously and hang
+    MAX_WORKERS = 2
     results_dict = {}  # Store results by index to maintain order
     completed_count = 0
     failed_count = 0
