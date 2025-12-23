@@ -227,42 +227,98 @@ def playlist_count(request):
 @require_http_methods(["GET"])
 def debug_spotify_search(request):
     """
-    DEBUG ENDPOINT: Test Spotify search directly from Django web process.
-    This bypasses Celery entirely to isolate whether hanging is Celery-specific.
+    DEBUG ENDPOINT: Test Spotify search using raw requests to bypass spotipy.
     
-    Usage: GET /api/debug-search/?q=fever+remix
+    Usage: GET /debug-search/?q=fever+remix
     """
     import time
-    query = request.GET.get("q", "fever remix")
+    import requests as raw_requests
     
-    logger.info(f"[DEBUG] debug_spotify_search called with query: {query}")
+    query = request.GET.get("q", "fever remix")
+    use_raw = request.GET.get("raw", "true") == "true"  # Default to raw requests
+    
+    logger.info(f"[DEBUG] debug_spotify_search called with query: {query}, use_raw: {use_raw}")
     start_time = time.time()
     
     try:
-        logger.info("[DEBUG] Creating Spotify client...")
+        # First, get a fresh token
+        logger.info("[DEBUG] Getting fresh access token...")
         sp = get_spotify_client()
-        logger.info("[DEBUG] Spotify client created, starting search...")
+        token = sp.auth_manager.get_access_token(as_dict=False)
+        logger.info(f"[DEBUG] Got access token (length: {len(token) if token else 0})")
         
-        results = sp.search(query, type="track", limit=5)
-        elapsed = time.time() - start_time
-        
-        logger.info(f"[DEBUG] Search completed in {elapsed:.2f}s")
-        
-        tracks = []
-        for item in results.get("tracks", {}).get("items", []):
-            tracks.append({
-                "id": item.get("id"),
-                "name": item.get("name"),
-                "artists": [a.get("name") for a in item.get("artists", [])],
+        if use_raw:
+            # Use raw requests to bypass spotipy entirely
+            logger.info("[DEBUG] Using RAW requests to test search endpoint...")
+            url = "https://api.spotify.com/v1/search"
+            headers = {"Authorization": f"Bearer {token}"}
+            params = {"q": query, "type": "track", "limit": 5}
+            
+            logger.info(f"[DEBUG] Making raw GET request to {url}...")
+            response = raw_requests.get(url, headers=headers, params=params, timeout=10)
+            elapsed = time.time() - start_time
+            
+            logger.info(f"[DEBUG] Raw request completed in {elapsed:.2f}s with status {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                tracks = []
+                for item in data.get("tracks", {}).get("items", []):
+                    tracks.append({
+                        "id": item.get("id"),
+                        "name": item.get("name"),
+                        "artists": [a.get("name") for a in item.get("artists", [])],
+                    })
+                return JsonResponse({
+                    "status": "success",
+                    "method": "raw_requests",
+                    "query": query,
+                    "elapsed_seconds": elapsed,
+                    "track_count": len(tracks),
+                    "tracks": tracks,
+                })
+            else:
+                return JsonResponse({
+                    "status": "error",
+                    "method": "raw_requests",
+                    "query": query,
+                    "elapsed_seconds": elapsed,
+                    "http_status": response.status_code,
+                    "error": response.text[:500],
+                }, status=response.status_code)
+        else:
+            # Use spotipy
+            logger.info("[DEBUG] Using SPOTIPY to test search...")
+            results = sp.search(query, type="track", limit=5)
+            elapsed = time.time() - start_time
+            
+            logger.info(f"[DEBUG] Spotipy search completed in {elapsed:.2f}s")
+            
+            tracks = []
+            for item in results.get("tracks", {}).get("items", []):
+                tracks.append({
+                    "id": item.get("id"),
+                    "name": item.get("name"),
+                    "artists": [a.get("name") for a in item.get("artists", [])],
+                })
+            
+            return JsonResponse({
+                "status": "success",
+                "method": "spotipy",
+                "query": query,
+                "elapsed_seconds": elapsed,
+                "track_count": len(tracks),
+                "tracks": tracks,
             })
-        
+    except raw_requests.Timeout as e:
+        elapsed = time.time() - start_time
+        logger.error(f"[DEBUG] Raw request TIMED OUT after {elapsed:.2f}s")
         return JsonResponse({
-            "status": "success",
+            "status": "timeout",
             "query": query,
             "elapsed_seconds": elapsed,
-            "track_count": len(tracks),
-            "tracks": tracks,
-        })
+            "error": "Request timed out after 10 seconds",
+        }, status=504)
     except Exception as e:
         elapsed = time.time() - start_time
         logger.error(f"[DEBUG] Search failed after {elapsed:.2f}s: {type(e).__name__}: {str(e)}")
