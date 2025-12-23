@@ -503,6 +503,11 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
     - Early termination if high-confidence match found
     - Increased limit per query to reduce total API calls
     """
+    import threading
+    thread_id = threading.current_thread().name
+    track_name = track.get("original_name", "Unknown")
+    logger.info(f"[DEBUG] [{thread_id}] find_remix_candidates START: {track_name}")
+    
     candidates = []
     seen_ids = set()
     
@@ -605,7 +610,9 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
     for query in search_queries:
         try:
             # Increased limit to 10 to get more candidates per query
+            logger.debug(f"[DEBUG] [{thread_id}] Starting search: {query[:50]}...")
             results = sp.search(query, type="track", limit=10)
+            logger.debug(f"[DEBUG] [{thread_id}] Search completed, got {len(results.get('tracks', {}).get('items', []))} results")
             for item in results["tracks"]["items"]:
                 if item["id"] in seen_ids:
                     continue
@@ -637,7 +644,8 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
             if high_confidence_found and len(candidates) >= num_candidates:
                 break
                 
-        except Exception:
+        except Exception as e:
+            logger.warning(f"[DEBUG] [{thread_id}] Search failed: {type(e).__name__}: {str(e)[:100]}")
             continue
     
     # Filter out low confidence matches (< 40) - only keep best and medium
@@ -645,6 +653,7 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
     
     # Sort by confidence and return top candidates
     candidates.sort(key=lambda x: x["confidence"], reverse=True)
+    logger.info(f"[DEBUG] [{thread_id}] find_remix_candidates END: {track_name} - found {len(candidates[:num_candidates])} candidates")
     return candidates[:num_candidates]
 
 
