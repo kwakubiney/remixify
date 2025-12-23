@@ -610,9 +610,9 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
     for query in search_queries:
         try:
             # Increased limit to 10 to get more candidates per query
-            logger.debug(f"[DEBUG] [{thread_id}] Starting search: {query[:50]}...")
+            logger.info(f"[DEBUG] [{thread_id}] Starting search: {query[:50]}...")
             results = sp.search(query, type="track", limit=10)
-            logger.debug(f"[DEBUG] [{thread_id}] Search completed, got {len(results.get('tracks', {}).get('items', []))} results")
+            logger.info(f"[DEBUG] [{thread_id}] Search completed, got {len(results.get('tracks', {}).get('items', []))} results")
             for item in results["tracks"]["items"]:
                 if item["id"] in seen_ids:
                     continue
