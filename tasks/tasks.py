@@ -721,10 +721,30 @@ def preview_remixes(self, url):
     # simultaneously, it causes a deadlock. Force the token refresh now (single-threaded)
     # so all worker threads use the cached token.
     logger.info("[DEBUG] Warming up Spotify token before parallel processing...")
+    import signal
+    
+    def timeout_handler(signum, frame):
+        raise TimeoutError("sp.current_user() timed out after 15 seconds")
+    
     try:
-        sp.current_user()  # This forces token refresh if needed
-        logger.info("[DEBUG] Token warmup successful")
+        # Set a 15 second timeout for the warmup call
+        original_handler = signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(15)
+        
+        logger.info("[DEBUG] Calling sp.current_user() with 15s timeout...")
+        user_info = sp.current_user()
+        
+        signal.alarm(0)  # Cancel the alarm
+        signal.signal(signal.SIGALRM, original_handler)  # Restore original handler
+        
+        logger.info(f"[DEBUG] Token warmup successful - user: {user_info.get('id', 'unknown')}")
+    except TimeoutError as e:
+        signal.alarm(0)
+        logger.error(f"[DEBUG] Token warmup TIMED OUT: {str(e)}")
+        logger.error("[DEBUG] This indicates the Spotify API call is hanging - likely a token refresh issue")
+        raise ValueError("Spotify API is not responding. Please try again in a moment.")
     except Exception as e:
+        signal.alarm(0)
         logger.error(f"[DEBUG] Token warmup failed: {type(e).__name__}: {str(e)}")
         raise ValueError("Failed to authenticate with Spotify. Please try again.")
     
