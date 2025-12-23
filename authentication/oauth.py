@@ -80,12 +80,36 @@ def get_spotify_client():
     Get authenticated Spotify client for the central account.
     This is the main entry point for all Spotify API operations.
     """
+    import requests
+    from urllib3.util.retry import Retry
+    from requests.adapters import HTTPAdapter
+    
     logger.info("[DEBUG] get_spotify_client called")
     try:
         oauth = get_spotify_oauth()
         logger.info("[DEBUG] Creating Spotify client with oauth manager...")
-        client = Spotify(auth_manager=oauth)
-        logger.info("[DEBUG] Spotify client created successfully")
+        
+        # Create client with request timeout to prevent indefinite hangs
+        # Default spotipy has no timeout and retries on 429 forever
+        client = Spotify(
+            auth_manager=oauth,
+            requests_timeout=10  # 10 second timeout per request
+        )
+        
+        # Replace the session's retry strategy to NOT retry on 429 (rate limit)
+        # This prevents the hang where urllib3 sleeps for Retry-After duration
+        retry_strategy = Retry(
+            total=3,  # Max 3 retries
+            backoff_factor=0.5,  # Wait 0.5, 1, 2 seconds between retries
+            status_forcelist=[500, 502, 503, 504],  # Only retry on server errors, NOT 429
+            allowed_methods=["GET", "POST", "PUT", "DELETE"],
+            raise_on_status=False
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        client._session.mount("https://", adapter)
+        client._session.mount("http://", adapter)
+        
+        logger.info("[DEBUG] Spotify client created with timeout and custom retry strategy")
         return client
     except Exception as e:
         logger.error(f"[DEBUG] Failed to create Spotify client: {type(e).__name__}: {str(e)}")
