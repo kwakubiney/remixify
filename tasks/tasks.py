@@ -728,11 +728,18 @@ def preview_remixes(self, url):
     logger.info("[DEBUG] Starting SEQUENTIAL track processing (no thread pool)")
     logger.info(f"[DEBUG] Processing {total_tracks} tracks...")
     
+    # CRITICAL: Create a FRESH Spotify client for search operations
+    # The sp client from get_playlist() may have corrupted SSL connections after Celery fork
+    # Creating a new client ensures fresh connections
+    logger.info("[DEBUG] Creating fresh Spotify client for search operations...")
+    sp_search = get_spotify_client()
+    logger.info("[DEBUG] Fresh Spotify client created successfully")
+    
     # Simple sequential for loop - no threading at all
     for i, track in enumerate(tracks):
         try:
             logger.info(f"[DEBUG] Processing track {i+1}/{total_tracks}: {track.get('original_name', 'Unknown')[:50]}")
-            candidates = find_remix_candidates(sp, track, original_track_id=track.get("id"))
+            candidates = find_remix_candidates(sp_search, track, original_track_id=track.get("id"))
             results_dict[i] = {
                 "original": {
                     "name": track["original_name"],
