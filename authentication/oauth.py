@@ -65,7 +65,8 @@ def get_spotify_oauth():
             client_secret=config("SPOTIPY_CLIENT_SECRET"),
             redirect_uri=config("REDIRECT_URI"),
             cache_handler=CentralAccountCacheHandler(),
-            scope="user-library-read playlist-modify-private playlist-modify-public playlist-read-collaborative playlist-read-private user-follow-modify"
+            scope="user-library-read playlist-modify-private playlist-modify-public playlist-read-collaborative playlist-read-private user-follow-modify",
+            open_browser=False  # CRITICAL: Prevent hanging on server environments
         )
         logger.info("[DEBUG] SpotifyOAuth manager created successfully")
         return oauth
@@ -84,10 +85,7 @@ def get_spotify_client():
         oauth = get_spotify_oauth()
         logger.info("[DEBUG] Creating Spotify client with oauth manager...")
         client = Spotify(auth_manager=oauth)
-        # Test the client by getting current user info
-        logger.info("[DEBUG] Testing Spotify client connection...")
-        user_info = client.me()
-        logger.info(f"[DEBUG] Spotify client connected successfully as: {user_info.get('display_name', user_info.get('id', 'Unknown'))}")
+        logger.info("[DEBUG] Spotify client created successfully")
         return client
     except Exception as e:
         logger.error(f"[DEBUG] Failed to create Spotify client: {type(e).__name__}: {str(e)}")
@@ -103,3 +101,4 @@ def oauth_factory(user_id=None):
 def spotify_client(oauth=None):
     """Legacy wrapper - returns central Spotify client."""
     return get_spotify_client()
+
