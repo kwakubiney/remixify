@@ -6,10 +6,13 @@ Instead of each user authenticating, we use ONE stored refresh token
 that belongs to the app owner's Spotify account.
 """
 import time
+import logging
 from spotipy.cache_handler import CacheHandler
 from spotipy.oauth2 import SpotifyOAuth
 from spotipy import Spotify
 from decouple import config
+
+logger = logging.getLogger(__name__)
 
 
 class CentralAccountCacheHandler(CacheHandler):
@@ -55,13 +58,20 @@ def get_spotify_oauth():
     Get SpotifyOAuth manager for the central account.
     No user_id needed - uses the central account's credentials.
     """
-    return SpotifyOAuth(
-        client_id=config("SPOTIPY_CLIENT_ID"),
-        client_secret=config("SPOTIPY_CLIENT_SECRET"),
-        redirect_uri=config("REDIRECT_URI"),
-        cache_handler=CentralAccountCacheHandler(),
-        scope="user-library-read playlist-modify-private playlist-modify-public playlist-read-collaborative playlist-read-private user-follow-modify"
-    )
+    logger.info("[DEBUG] get_spotify_oauth called")
+    try:
+        oauth = SpotifyOAuth(
+            client_id=config("SPOTIPY_CLIENT_ID"),
+            client_secret=config("SPOTIPY_CLIENT_SECRET"),
+            redirect_uri=config("REDIRECT_URI"),
+            cache_handler=CentralAccountCacheHandler(),
+            scope="user-library-read playlist-modify-private playlist-modify-public playlist-read-collaborative playlist-read-private user-follow-modify"
+        )
+        logger.info("[DEBUG] SpotifyOAuth manager created successfully")
+        return oauth
+    except Exception as e:
+        logger.error(f"[DEBUG] Failed to create SpotifyOAuth: {type(e).__name__}: {str(e)}")
+        raise
 
 
 def get_spotify_client():
@@ -69,8 +79,19 @@ def get_spotify_client():
     Get authenticated Spotify client for the central account.
     This is the main entry point for all Spotify API operations.
     """
-    oauth = get_spotify_oauth()
-    return Spotify(auth_manager=oauth)
+    logger.info("[DEBUG] get_spotify_client called")
+    try:
+        oauth = get_spotify_oauth()
+        logger.info("[DEBUG] Creating Spotify client with oauth manager...")
+        client = Spotify(auth_manager=oauth)
+        # Test the client by getting current user info
+        logger.info("[DEBUG] Testing Spotify client connection...")
+        user_info = client.me()
+        logger.info(f"[DEBUG] Spotify client connected successfully as: {user_info.get('display_name', user_info.get('id', 'Unknown'))}")
+        return client
+    except Exception as e:
+        logger.error(f"[DEBUG] Failed to create Spotify client: {type(e).__name__}: {str(e)}")
+        raise
 
 
 # Legacy functions for backwards compatibility during migration

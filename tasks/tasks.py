@@ -409,9 +409,11 @@ def get_playlist(url):
     """Fetch playlist tracks from Spotify"""
     from spotipy.exceptions import SpotifyException
     
+    logger.info(f"[DEBUG] get_playlist called with URL: {url}")
+    
     playlist_id = get_playlist_id(url)
     
-    logger.info(f"Extracted playlist ID: {playlist_id}")
+    logger.info(f"[DEBUG] Extracted playlist ID: {playlist_id}")
     
     # Check if this is a Spotify-generated playlist (known limitation)
     # These IDs start with '37i9dQZF1' (Daily Mix, Discover Weekly, etc.)
@@ -421,13 +423,21 @@ def get_playlist(url):
         raise ValueError("Spotify-generated playlists (like Daily Mix, Discover Weekly, or artist \"This Is\" playlists) aren't accessible via the API. Please use a playlist you or someone else created.")
     
     pattern = re.compile(r"\(.*?\)")
-    sp = get_spotify_client()
+    logger.info(f"[DEBUG] About to get Spotify client...")
+    try:
+        sp = get_spotify_client()
+        logger.info(f"[DEBUG] Spotify client obtained successfully")
+    except Exception as e:
+        logger.error(f"[DEBUG] Failed to get Spotify client: {type(e).__name__}: {str(e)}")
+        raise
     track_details = {}
     tracks = []
     items = []
     
     try:
+        logger.info(f"[DEBUG] Fetching playlist data from Spotify API...")
         data = sp.playlist(playlist_id)
+        logger.info(f"[DEBUG] Playlist data fetched successfully: {data.get('name', 'Unknown')}")
     except SpotifyException as e:
         logger.error(f"SpotifyException for playlist {playlist_id}: {e.http_status} - {str(e)}")
         if e.http_status == 404:
@@ -647,14 +657,25 @@ def preview_remixes(self, url):
     """
     from spotipy.exceptions import SpotifyException
     
-    logger.info(f"Starting preview_remixes task - URL: {url}, Task ID: {self.request.id}")
+    logger.info(f"[DEBUG] ========================================")
+    logger.info(f"[DEBUG] Starting preview_remixes task")
+    logger.info(f"[DEBUG] URL: {url}")
+    logger.info(f"[DEBUG] Task ID: {self.request.id}")
+    logger.info(f"[DEBUG] ========================================")
     
     try:
+        logger.info(f"[DEBUG] Creating ProgressRecorder...")
         progress_recorder = ProgressRecorder(self)
+        logger.info(f"[DEBUG] ProgressRecorder created successfully")
+        
+        logger.info(f"[DEBUG] Calling get_playlist...")
         playlist_info, tracks, sp = get_playlist(url)
+        logger.info(f"[DEBUG] get_playlist returned successfully")
         
         total_tracks = len(tracks)
-        logger.info(f"Playlist ingested - Name: {playlist_info['playlist_name']}, Total tracks: {total_tracks}")
+        logger.info(f"[DEBUG] Playlist ingested successfully")
+        logger.info(f"[DEBUG] Playlist name: {playlist_info['playlist_name']}")
+        logger.info(f"[DEBUG] Total tracks: {total_tracks}")
         
         preview_results = {
             "playlist_name": playlist_info["playlist_name"],
@@ -664,11 +685,11 @@ def preview_remixes(self, url):
         }
     except ValueError as e:
         # User-friendly errors from get_playlist
-        logger.warning(f"Validation error for URL {url}: {str(e)}")
+        logger.error(f"[DEBUG] ValueError in get_playlist: {str(e)}")
         raise
     except SpotifyException as e:
         # Catch any Spotify errors that weren't handled in get_playlist
-        logger.error(f"Spotify API error for URL {url}: {str(e)}", exc_info=True)
+        logger.error(f"[DEBUG] SpotifyException in preview_remixes: {e.http_status} - {str(e)}", exc_info=True)
         if e.http_status == 404:
             raise ValueError("This playlist is private or doesn't exist. Please use a public playlist.")
         elif e.http_status == 429:
@@ -676,7 +697,7 @@ def preview_remixes(self, url):
         else:
             raise ValueError("Unable to load this playlist. Please check the link and try again.")
     except Exception as e:
-        logger.error(f"Unexpected error ingesting playlist from URL {url}: {str(e)}", exc_info=True)
+        logger.error(f"[DEBUG] Unexpected exception in preview_remixes: {type(e).__name__}: {str(e)}", exc_info=True)
         raise ValueError("Something went wrong. Please try again.")
     
     # Process tracks in parallel for significant speedup
@@ -686,8 +707,12 @@ def preview_remixes(self, url):
     completed_count = 0
     failed_count = 0
     
+    logger.info(f"[DEBUG] Starting parallel track processing with {MAX_WORKERS} workers")
+    logger.info(f"[DEBUG] Processing {total_tracks} tracks...")
+    
     def process_single_track(index, track):
         """Process a single track and return results."""
+        logger.debug(f"[DEBUG] Processing track {index}: {track.get('original_name', 'Unknown')}")
         candidates = find_remix_candidates(sp, track, original_track_id=track.get("id"))
         return index, {
             "original": {
@@ -730,6 +755,8 @@ def preview_remixes(self, url):
                 }
             
             completed_count += 1
+            if completed_count % 10 == 0 or completed_count == 1:
+                logger.info(f"[DEBUG] Progress update: {completed_count}/{total_tracks} tracks processed")
             progress_recorder.set_progress(completed_count, total_tracks)
 
     logger.info(
