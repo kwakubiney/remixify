@@ -109,7 +109,20 @@ def get_spotify_client():
         client._session.mount("https://", adapter)
         client._session.mount("http://", adapter)
         
-        logger.info("[DEBUG] Spotify client created with timeout and custom retry strategy")
+        # Add response hook to log ALL HTTP responses for debugging
+        def log_response(response, *args, **kwargs):
+            url_short = response.request.url[:80] if response.request.url else "?"
+            logger.info(f"[HTTP] {response.request.method} {url_short}... -> {response.status_code}")
+            if response.status_code == 429:
+                retry_after = response.headers.get('Retry-After', 'unknown')
+                logger.warning(f"[HTTP] RATE LIMITED! Retry-After: {retry_after}s")
+            elif response.status_code >= 400:
+                logger.warning(f"[HTTP] Error response: {response.text[:200] if response.text else 'no body'}")
+            return response
+        
+        client._session.hooks['response'].append(log_response)
+        
+        logger.info("[DEBUG] Spotify client created with timeout, retry strategy, and response logging")
         return client
     except Exception as e:
         logger.error(f"[DEBUG] Failed to create Spotify client: {type(e).__name__}: {str(e)}")
