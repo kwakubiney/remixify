@@ -22,7 +22,7 @@ gunicorn==20.1.0
 idna==3.3
 kombu
 oauthlib==3.2.0
-packaging==21.3
+packaging==25.0
 prompt-toolkit==3.0.29
 psycopg2-binary
 pycparser==2.21
