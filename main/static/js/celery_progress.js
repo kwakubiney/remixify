@@ -38,7 +38,7 @@ class CeleryProgressBar {
         }
         this.messages = Object.assign({}, defaultMessages, options.defaultMessages);
     }
-    
+
     onSuccessDefault(progressBarElement, progressBarMessageElement, result) {
         result = this.getMessageDetails(result);
         if (progressBarElement) {
@@ -58,9 +58,13 @@ class CeleryProgressBar {
      * @param data - A Response object for HTTP errors, undefined for other errors
      */
     onErrorDefault(progressBarElement, progressBarMessageElement, excMessage, data) {
-        progressBarElement.style.backgroundColor = this.barColors.error;
+        if (progressBarElement) {
+            progressBarElement.style.backgroundColor = this.barColors.error;
+        }
         excMessage = excMessage || '';
-        progressBarMessageElement.textContent = "Uh-Oh, something went wrong! " + excMessage;
+        if (progressBarMessageElement) {
+            progressBarMessageElement.textContent = "Uh-Oh, something went wrong! " + excMessage;
+        }
     }
 
     onTaskErrorDefault(progressBarElement, progressBarMessageElement, excMessage) {
@@ -70,29 +74,36 @@ class CeleryProgressBar {
 
     onRetryDefault(progressBarElement, progressBarMessageElement, excMessage, retryWhen) {
         retryWhen = new Date(retryWhen);
-        let message = 'Retrying in ' + Math.round((retryWhen.getTime() - Date.now())/1000) + 's: ' + excMessage;
+        let message = 'Retrying in ' + Math.round((retryWhen.getTime() - Date.now()) / 1000) + 's: ' + excMessage;
         this.onError(progressBarElement, progressBarMessageElement, message);
     }
 
     onIgnoredDefault(progressBarElement, progressBarMessageElement, result) {
-        progressBarElement.style.backgroundColor = this.barColors.ignored;
-        progressBarMessageElement.textContent =  result || 'Task result ignored!'
+        if (progressBarElement) {
+            progressBarElement.style.backgroundColor = this.barColors.ignored;
+        }
+        if (progressBarMessageElement) {
+            progressBarMessageElement.textContent = result || 'Task result ignored!';
+        }
     }
 
     onProgressDefault(progressBarElement, progressBarMessageElement, progress) {
-        progressBarElement.style.backgroundColor = this.barColors.progress;
-        progressBarElement.style.width = progress.percent + "%";
-        var description = progress.description || "";
-        if (progress.current == 0) {
-            if (progress.pending === true) {
-                progressBarMessageElement.textContent = this.messages.waiting;
-            } else {
-                progressBarMessageElement.textContent = this.messages.started;
-            }
-        } else {
-            progressBarMessageElement.textContent = progress.current + ' of ' + progress.total + ' songs processed. ' + description;
+        if (progressBarElement) {
+            progressBarElement.style.backgroundColor = this.barColors.progress;
+            progressBarElement.style.width = progress.percent + "%";
         }
-
+        var description = progress.description || "";
+        if (progressBarMessageElement) {
+            if (progress.current == 0) {
+                if (progress.pending === true) {
+                    progressBarMessageElement.textContent = this.messages.waiting;
+                } else {
+                    progressBarMessageElement.textContent = this.messages.started;
+                }
+            } else {
+                progressBarMessageElement.textContent = progress.current + ' of ' + progress.total + ' songs processed. ' + description;
+            }
+        }
     }
 
     getMessageDetails(result) {

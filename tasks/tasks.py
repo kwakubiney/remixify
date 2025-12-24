@@ -409,11 +409,11 @@ def get_playlist(url):
     """Fetch playlist tracks from Spotify"""
     from spotipy.exceptions import SpotifyException
     
-    logger.info(f"[DEBUG] get_playlist called with URL: {url}")
+    logger.info(f"get_playlist called with URL: {url}")
     
     playlist_id = get_playlist_id(url)
     
-    logger.info(f"[DEBUG] Extracted playlist ID: {playlist_id}")
+    logger.info(f"Extracted playlist ID: {playlist_id}")
     
     # Check if this is a Spotify-generated playlist (known limitation)
     # These IDs start with '37i9dQZF1' (Daily Mix, Discover Weekly, etc.)
@@ -423,21 +423,21 @@ def get_playlist(url):
         raise ValueError("Spotify-generated playlists (like Daily Mix, Discover Weekly, or artist \"This Is\" playlists) aren't accessible via the API. Please use a playlist you or someone else created.")
     
     pattern = re.compile(r"\(.*?\)")
-    logger.info(f"[DEBUG] About to get Spotify client...")
+    logger.info(f"About to get Spotify client...")
     try:
         sp = get_spotify_client()
-        logger.info(f"[DEBUG] Spotify client obtained successfully")
+        logger.info(f"Spotify client obtained successfully")
     except Exception as e:
-        logger.error(f"[DEBUG] Failed to get Spotify client: {type(e).__name__}: {str(e)}")
+        logger.error(f"Failed to get Spotify client: {type(e).__name__}: {str(e)}")
         raise
     track_details = {}
     tracks = []
     items = []
     
     try:
-        logger.info(f"[DEBUG] Fetching playlist data from Spotify API...")
+        logger.info(f"Fetching playlist data from Spotify API...")
         data = sp.playlist(playlist_id)
-        logger.info(f"[DEBUG] Playlist data fetched successfully: {data.get('name', 'Unknown')}")
+        logger.info(f"Playlist data fetched successfully: {data.get('name', 'Unknown')}")
     except SpotifyException as e:
         logger.error(f"SpotifyException for playlist {playlist_id}: {e.http_status} - {str(e)}")
         if e.http_status == 404:
@@ -506,7 +506,7 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
     import threading
     thread_id = threading.current_thread().name
     track_name = track.get("original_name", "Unknown")
-    logger.info(f"[DEBUG] [{thread_id}] find_remix_candidates START: {track_name}")
+    logger.info(f"[{thread_id}] find_remix_candidates START: {track_name}")
     
     candidates = []
     seen_ids = set()
@@ -614,9 +614,9 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
             time_module.sleep(0.2)
         try:
             # Increased limit to 10 to get more candidates per query
-            logger.info(f"[DEBUG] [{thread_id}] Starting search: {query[:50]}...")
+            logger.info(f"[{thread_id}] Starting search: {query[:50]}...")
             results = sp.search(query, type="track", limit=10)
-            logger.info(f"[DEBUG] [{thread_id}] Search completed, got {len(results.get('tracks', {}).get('items', []))} results")
+            logger.info(f"[{thread_id}] Search completed, got {len(results.get('tracks', {}).get('items', []))} results")
             for item in results["tracks"]["items"]:
                 if item["id"] in seen_ids:
                     continue
@@ -649,7 +649,7 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
                 break
                 
         except Exception as e:
-            logger.warning(f"[DEBUG] [{thread_id}] Search failed: {type(e).__name__}: {str(e)[:100]}")
+            logger.warning(f"[{thread_id}] Search failed: {type(e).__name__}: {str(e)[:100]}")
             continue
     
     # Filter out low confidence matches (< 40) - only keep best and medium
@@ -657,7 +657,7 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
     
     # Sort by confidence and return top candidates
     candidates.sort(key=lambda x: x["confidence"], reverse=True)
-    logger.info(f"[DEBUG] [{thread_id}] find_remix_candidates END: {track_name} - found {len(candidates[:num_candidates])} candidates")
+    logger.info(f"[{thread_id}] find_remix_candidates END: {track_name} - found {len(candidates[:num_candidates])} candidates")
     return candidates[:num_candidates]
 
 
@@ -670,25 +670,25 @@ def preview_remixes(self, url):
     """
     from spotipy.exceptions import SpotifyException
     
-    logger.info(f"[DEBUG] ========================================")
-    logger.info(f"[DEBUG] Starting preview_remixes task")
-    logger.info(f"[DEBUG] URL: {url}")
-    logger.info(f"[DEBUG] Task ID: {self.request.id}")
-    logger.info(f"[DEBUG] ========================================")
+    logger.info(f"========================================")
+    logger.info(f"Starting preview_remixes task")
+    logger.info(f"URL: {url}")
+    logger.info(f"Task ID: {self.request.id}")
+    logger.info(f"========================================")
     
     try:
-        logger.info(f"[DEBUG] Creating ProgressRecorder...")
+        logger.info(f"Creating ProgressRecorder...")
         progress_recorder = ProgressRecorder(self)
-        logger.info(f"[DEBUG] ProgressRecorder created successfully")
+        logger.info(f"ProgressRecorder created successfully")
         
-        logger.info(f"[DEBUG] Calling get_playlist...")
+        logger.info(f"Calling get_playlist...")
         playlist_info, tracks, sp = get_playlist(url)
-        logger.info(f"[DEBUG] get_playlist returned successfully")
+        logger.info(f"get_playlist returned successfully")
         
         total_tracks = len(tracks)
-        logger.info(f"[DEBUG] Playlist ingested successfully")
-        logger.info(f"[DEBUG] Playlist name: {playlist_info['playlist_name']}")
-        logger.info(f"[DEBUG] Total tracks: {total_tracks}")
+        logger.info(f"Playlist ingested successfully")
+        logger.info(f"Playlist name: {playlist_info['playlist_name']}")
+        logger.info(f"Total tracks: {total_tracks}")
         
         preview_results = {
             "playlist_name": playlist_info["playlist_name"],
@@ -698,11 +698,11 @@ def preview_remixes(self, url):
         }
     except ValueError as e:
         # User-friendly errors from get_playlist
-        logger.error(f"[DEBUG] ValueError in get_playlist: {str(e)}")
+        logger.error(f"ValueError in get_playlist: {str(e)}")
         raise
     except SpotifyException as e:
         # Catch any Spotify errors that weren't handled in get_playlist
-        logger.error(f"[DEBUG] SpotifyException in preview_remixes: {e.http_status} - {str(e)}", exc_info=True)
+        logger.error(f"SpotifyException in preview_remixes: {e.http_status} - {str(e)}", exc_info=True)
         if e.http_status == 404:
             raise ValueError("This playlist is private or doesn't exist. Please use a public playlist.")
         elif e.http_status == 429:
@@ -710,7 +710,7 @@ def preview_remixes(self, url):
         else:
             raise ValueError("Unable to load this playlist. Please check the link and try again.")
     except Exception as e:
-        logger.error(f"[DEBUG] Unexpected exception in preview_remixes: {type(e).__name__}: {str(e)}", exc_info=True)
+        logger.error(f"Unexpected exception in preview_remixes: {type(e).__name__}: {str(e)}", exc_info=True)
         raise ValueError("Something went wrong. Please try again.")
     
     # Process tracks SEQUENTIALLY to avoid thread-safety issues with shared Spotify client
@@ -723,22 +723,22 @@ def preview_remixes(self, url):
     # Token warmup is no longer needed since get_playlist() already made successful API calls.
     # The token has been cached by CentralAccountCacheHandler and will be reused by all threads.
     # Previously, an extra sp.current_user() call here was triggering Spotify rate limits (429).
-    logger.info("[DEBUG] Token already validated via playlist fetch - skipping warmup call")
+    logger.info("Token already validated via playlist fetch - skipping warmup call")
     
-    logger.info("[DEBUG] Starting SEQUENTIAL track processing (no thread pool)")
-    logger.info(f"[DEBUG] Processing {total_tracks} tracks...")
+    logger.info("Starting SEQUENTIAL track processing (no thread pool)")
+    logger.info(f"Processing {total_tracks} tracks...")
     
     # CRITICAL: Create a FRESH Spotify client for search operations
     # The sp client from get_playlist() may have corrupted SSL connections after Celery fork
     # Creating a new client ensures fresh connections
-    logger.info("[DEBUG] Creating fresh Spotify client for search operations...")
+    logger.info("Creating fresh Spotify client for search operations...")
     sp_search = get_spotify_client()
-    logger.info("[DEBUG] Fresh Spotify client created successfully")
+    logger.info("Fresh Spotify client created successfully")
     
     # Simple sequential for loop - no threading at all
     for i, track in enumerate(tracks):
         try:
-            logger.info(f"[DEBUG] Processing track {i+1}/{total_tracks}: {track.get('original_name', 'Unknown')[:50]}")
+            logger.info(f"Processing track {i+1}/{total_tracks}: {track.get('original_name', 'Unknown')[:50]}")
             candidates = find_remix_candidates(sp_search, track, original_track_id=track.get("id"))
             results_dict[i] = {
                 "original": {
@@ -752,7 +752,7 @@ def preview_remixes(self, url):
                 "has_high_confidence": any(c["confidence_level"] == "high" for c in candidates)
             }
         except Exception as e:
-            logger.warning(f"[DEBUG] Track {i} failed: {type(e).__name__}: {str(e)[:100]}")
+            logger.warning(f"Track {i} failed: {type(e).__name__}: {str(e)[:100]}")
             failed_count += 1
             results_dict[i] = {
                 "original": {
@@ -768,7 +768,7 @@ def preview_remixes(self, url):
         
         completed_count += 1
         if completed_count % 10 == 0 or completed_count == 1:
-            logger.info(f"[DEBUG] Progress update: {completed_count}/{total_tracks} tracks processed")
+            logger.info(f"Progress update: {completed_count}/{total_tracks} tracks processed")
         progress_recorder.set_progress(completed_count, total_tracks)
 
     logger.info(

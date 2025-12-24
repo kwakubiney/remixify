@@ -237,28 +237,28 @@ def debug_spotify_search(request):
     query = request.GET.get("q", "fever remix")
     use_raw = request.GET.get("raw", "true") == "true"  # Default to raw requests
     
-    logger.info(f"[DEBUG] debug_spotify_search called with query: {query}, use_raw: {use_raw}")
+    logger.info(f"debug_spotify_search called with query: {query}, use_raw: {use_raw}")
     start_time = time.time()
     
     try:
         # First, get a fresh token
-        logger.info("[DEBUG] Getting fresh access token...")
+        logger.info("Getting fresh access token...")
         sp = get_spotify_client()
         token = sp.auth_manager.get_access_token(as_dict=False)
-        logger.info(f"[DEBUG] Got access token (length: {len(token) if token else 0})")
+        logger.info(f"Got access token (length: {len(token) if token else 0})")
         
         if use_raw:
             # Use raw requests to bypass spotipy entirely
-            logger.info("[DEBUG] Using RAW requests to test search endpoint...")
+            logger.info("Using RAW requests to test search endpoint...")
             url = "https://api.spotify.com/v1/search"
             headers = {"Authorization": f"Bearer {token}"}
             params = {"q": query, "type": "track", "limit": 5}
             
-            logger.info(f"[DEBUG] Making raw GET request to {url}...")
+            logger.info(f"Making raw GET request to {url}...")
             response = raw_requests.get(url, headers=headers, params=params, timeout=10)
             elapsed = time.time() - start_time
             
-            logger.info(f"[DEBUG] Raw request completed in {elapsed:.2f}s with status {response.status_code}")
+            logger.info(f"Raw request completed in {elapsed:.2f}s with status {response.status_code}")
             
             if response.status_code == 200:
                 data = response.json()
@@ -288,11 +288,11 @@ def debug_spotify_search(request):
                 }, status=response.status_code)
         else:
             # Use spotipy
-            logger.info("[DEBUG] Using SPOTIPY to test search...")
+            logger.info("Using SPOTIPY to test search...")
             results = sp.search(query, type="track", limit=5)
             elapsed = time.time() - start_time
             
-            logger.info(f"[DEBUG] Spotipy search completed in {elapsed:.2f}s")
+            logger.info(f"Spotipy search completed in {elapsed:.2f}s")
             
             tracks = []
             for item in results.get("tracks", {}).get("items", []):
@@ -312,7 +312,7 @@ def debug_spotify_search(request):
             })
     except raw_requests.Timeout as e:
         elapsed = time.time() - start_time
-        logger.error(f"[DEBUG] Raw request TIMED OUT after {elapsed:.2f}s")
+        logger.error(f"Raw request TIMED OUT after {elapsed:.2f}s")
         return JsonResponse({
             "status": "timeout",
             "query": query,
@@ -321,7 +321,7 @@ def debug_spotify_search(request):
         }, status=504)
     except Exception as e:
         elapsed = time.time() - start_time
-        logger.error(f"[DEBUG] Search failed after {elapsed:.2f}s: {type(e).__name__}: {str(e)}")
+        logger.error(f"Search failed after {elapsed:.2f}s: {type(e).__name__}: {str(e)}")
         return JsonResponse({
             "status": "error",
             "query": query,

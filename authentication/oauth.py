@@ -43,33 +43,23 @@ class CentralAccountCacheHandler(CacheHandler):
 
         # If we have a valid cached token, return it
         if current_cache:
-            # Check if token is still valid (with 60s buffer)
             expires_at = current_cache.get("expires_at", 0)
             if expires_at > time.time() + 60:
-                logger.info(f"[DEBUG] get_cached_token ({self.token_env_key}): Using valid cached token (expires in {int(expires_at - time.time())}s)")
                 return current_cache
-            else:
-                logger.info(f"[DEBUG] get_cached_token ({self.token_env_key}): Cached token expired or expiring soon")
-        else:
-            logger.info(f"[DEBUG] get_cached_token ({self.token_env_key}): No cached token found, will trigger refresh")
         
         if not self.refresh_token:
-             logger.warning(f"[DEBUG] get_cached_token ({self.token_env_key}): No refresh token available in env")
              return None
 
         # Return a token structure that triggers refresh
-        # SpotifyOAuth will use the refresh_token to get a new access_token
-        logger.info(f"[DEBUG] get_cached_token ({self.token_env_key}): Returning expired token structure to trigger refresh")
         return {
             "access_token": None,
             "refresh_token": self.refresh_token,
-            "expires_at": 0,  # Expired, will trigger refresh
+            "expires_at": 0,
             "scope": "user-library-read playlist-modify-private playlist-modify-public playlist-read-collaborative playlist-read-private user-follow-modify"
         }
     
     def save_token_to_cache(self, token_info):
         """Save refreshed token to class-level cache."""
-        logger.info(f"[DEBUG] save_token_to_cache ({self.token_env_key}): Saving new token (expires_at: {token_info.get('expires_at', 'unknown')})")
         CentralAccountCacheHandler._token_caches[self.token_env_key] = token_info
 
 
@@ -90,10 +80,8 @@ def get_spotify_oauth(index=0):
     client_secret = config(client_secret_key, default=None)
     
     if not client_id or not client_secret:
-        logger.warning(f"[DEBUG] Missing credentials for index {index} ({client_id_key})")
         return None
 
-    logger.info(f"[DEBUG] Creating SpotifyOAuth for client index {index}")
     try:
         oauth = SpotifyOAuth(
             client_id=client_id,
@@ -105,7 +93,7 @@ def get_spotify_oauth(index=0):
         )
         return oauth
     except Exception as e:
-        logger.error(f"[DEBUG] Failed to create SpotifyOAuth for index {index}: {type(e).__name__}: {str(e)}")
+        logger.error(f"Failed to create SpotifyOAuth for index {index}: {type(e).__name__}: {str(e)}")
         return None
 
 def create_raw_spotify_client(index=0):
@@ -146,10 +134,9 @@ class RotatingSpotifyClient:
     """
     def __init__(self):
         self.current_index = 0
-        self.max_clients = 10 # Reasonable upper limit check
+        self.max_clients = 10
         self._current_client_instance = None
         self._available_indices = self._discover_available_indices()
-        logger.info(f"[DEBUG] RotatingSpotifyClient initialized. Available clients: {self._available_indices}")
 
     def _discover_available_indices(self):
         indices = []
@@ -187,7 +174,6 @@ class RotatingSpotifyClient:
                 
             self.current_index = next_index
             self._current_client_instance = create_raw_spotify_client(self.current_index)
-            logger.info(f"[ROTATION] Successfully rotated to client index {self.current_index}")
             return True
         except ValueError:
             # Current index not in available? Should not happen. reset to 0
@@ -246,7 +232,6 @@ def get_spotify_client():
     Get authenticated Spotify client (Rotating).
     This is the main entry point for all Spotify API operations.
     """
-    logger.info("[DEBUG] get_spotify_client called (Returning Rotating Client)")
     return RotatingSpotifyClient()
 
 
