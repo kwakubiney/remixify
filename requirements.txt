@@ -25,7 +25,7 @@ oauthlib==3.2.0
 packaging==21.3
 prompt-toolkit==3.0.29
 psycopg2-binary
-pycparser==2.21
+pycparser==2.23
 PyJWT==2.4.0
 pyparsing==3.0.9
 python-decouple==3.6
