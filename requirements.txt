@@ -26,7 +26,7 @@ packaging==21.3
 prompt-toolkit==3.0.29
 psycopg2-binary
 pycparser==2.21
-PyJWT==2.4.0
+PyJWT==2.10.1
 pyparsing==3.0.9
 python-decouple==3.6
 python3-openid==3.2.0
