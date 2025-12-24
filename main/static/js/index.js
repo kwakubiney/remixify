@@ -29,51 +29,53 @@ const state = {
 const MANUAL_CONFIDENCE_LEVEL = 'manual';
 
 // DOM Elements
-const elements = {
-    // Phases
-    phaseInput: document.getElementById('phase-input'),
-    phaseSelection: document.getElementById('phase-selection'),
-    phaseSuccess: document.getElementById('phase-success'),
-    
-    // Phase 1
-    form: document.getElementById('playlist-form'),
-    urlInput: document.getElementById('input_url'),
-    submitBtn: document.getElementById('submit_btn'),
-    progressSection: document.getElementById('progress-section'),
-    progressBar: document.getElementById('progress-bar'),
-    progressMessage: document.getElementById('progress-message'),
-    recentPlaylists: document.getElementById('recent-playlists'),
-    recentList: document.getElementById('recent-list'),
-    
-    // Phase 2
-    backBtn: document.getElementById('back-btn'),
-    playlistImage: document.getElementById('playlist-image'),
-    playlistName: document.getElementById('playlist-name'),
-    trackCount: document.getElementById('track-count'),
-    summaryStats: document.getElementById('summary-stats'),
-    statHigh: document.getElementById('stat-high'),
-    statMedium: document.getElementById('stat-medium'),
-    statNone: document.getElementById('stat-none'),
-    selectAllHigh: document.getElementById('select-all-high'),
-    selectAll: document.getElementById('select-all'),
-    deselectAll: document.getElementById('deselect-all'),
-    selectedCount: document.getElementById('selected-count'),
-    trackSearch: document.getElementById('track-search'),
-    trackList: document.getElementById('track-list'),
-    showMoreWrapper: document.getElementById('show-more-wrapper'),
-    showMoreBtn: document.getElementById('show-more-btn'),
-    createBtn: document.getElementById('create-btn'),
-    stickyBar: document.getElementById('sticky-bar'),
-    stickySelectedCount: document.getElementById('sticky-selected-count'),
-    
-    // Phase 3
-    successMessage: document.getElementById('success-message'),
-    spotifyLink: document.getElementById('spotify-link'),
-    newPlaylistBtn: document.getElementById('new-playlist-btn')
-};
+let elements = {};
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    elements = {
+        // Phases
+        phaseInput: document.getElementById('phase-input'),
+        phaseSelection: document.getElementById('phase-selection'),
+        phaseSuccess: document.getElementById('phase-success'),
+
+        // Phase 1
+        form: document.getElementById('playlist-form'),
+        urlInput: document.getElementById('input_url'),
+        submitBtn: document.getElementById('submit_btn'),
+        progressSection: document.getElementById('progress-section'),
+        progressBar: document.getElementById('progress-bar'),
+        progressMessage: document.getElementById('progress-message'),
+        recentPlaylists: document.getElementById('recent-playlists'),
+        recentList: document.getElementById('recent-list'),
+
+        // Phase 2
+        backBtn: document.getElementById('back-btn'),
+        playlistImage: document.getElementById('playlist-image'),
+        playlistName: document.getElementById('playlist-name'),
+        trackCount: document.getElementById('track-count'),
+        summaryStats: document.getElementById('summary-stats'),
+        statHigh: document.getElementById('stat-high'),
+        statMedium: document.getElementById('stat-medium'),
+        statNone: document.getElementById('stat-none'),
+        selectAllHigh: document.getElementById('select-all-high'),
+        selectAll: document.getElementById('select-all'),
+        deselectAll: document.getElementById('deselect-all'),
+        selectedCount: document.getElementById('selected-count'),
+        trackSearch: document.getElementById('track-search'),
+        trackList: document.getElementById('track-list'),
+        showMoreWrapper: document.getElementById('show-more-wrapper'),
+        showMoreBtn: document.getElementById('show-more-btn'),
+        createBtn: document.getElementById('create-btn'),
+        stickyBar: document.getElementById('sticky-bar'),
+        stickySelectedCount: document.getElementById('sticky-selected-count'),
+
+        // Phase 3
+        successMessage: document.getElementById('success-message'),
+        spotifyLink: document.getElementById('spotify-link'),
+        newPlaylistBtn: document.getElementById('new-playlist-btn')
+    };
+
     state.csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     setupEventListeners();
     loadRecentPlaylists();
@@ -84,24 +86,24 @@ document.addEventListener('DOMContentLoaded', () => {
 function animateCounter(element, targetValue, duration = 1500) {
     const startValue = 0;
     const startTime = performance.now();
-    
+
     function update(currentTime) {
         const elapsed = currentTime - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        
+
         // Easing function for smooth deceleration
         const easeOutQuart = 1 - Math.pow(1 - progress, 4);
         const currentValue = Math.floor(startValue + (targetValue - startValue) * easeOutQuart);
-        
+
         element.textContent = currentValue.toLocaleString();
-        
+
         if (progress < 1) {
             requestAnimationFrame(update);
         } else {
             element.textContent = targetValue.toLocaleString();
         }
     }
-    
+
     requestAnimationFrame(update);
 }
 
@@ -110,13 +112,13 @@ async function loadPlaylistCount() {
     try {
         const response = await fetch('/playlist-count/');
         const data = await response.json();
-        
+
         if (data.count > 0) {
             const counterEl = document.getElementById('playlist-counter');
             const numberEl = document.getElementById('counter-number');
-            
+
             counterEl.style.display = 'inline-flex';
-            
+
             // Start the rolling animation
             animateCounter(numberEl, data.count);
         }
@@ -130,7 +132,7 @@ async function loadRecentPlaylists() {
     try {
         const response = await fetch('/recent-playlists/');
         const data = await response.json();
-        
+
         if (data.playlists && data.playlists.length > 0) {
             renderRecentPlaylists(data.playlists);
         } else {
@@ -148,16 +150,16 @@ function renderRecentPlaylists(playlists) {
     elements.recentList.innerHTML = playlists.map(playlist => `
         <a href="${playlist.url}" target="_blank" rel="noopener noreferrer" class="recent-card">
             <div class="recent-image">
-                ${playlist.image 
-                    ? `<img src="${playlist.image}" alt="${playlist.name}">`
-                    : `<div class="recent-placeholder">
+                ${playlist.image
+            ? `<img src="${playlist.image}" alt="${playlist.name}">`
+            : `<div class="recent-placeholder">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                             <circle cx="12" cy="12" r="10"/>
                             <path d="M8 15C8.5 12 10.5 10 14 9"/>
                             <path d="M8 12C8.5 10 10 8.5 13 8"/>
                         </svg>
                        </div>`
-                }
+        }
             </div>
             <div class="recent-info">
                 <span class="recent-name">${playlist.name}</span>
@@ -170,14 +172,14 @@ function renderRecentPlaylists(playlists) {
 function setupEventListeners() {
     // Phase 1: Form submission
     elements.form.addEventListener('submit', handleFormSubmit);
-    
+
     // Phase 2: Selection controls
     elements.backBtn.addEventListener('click', goToPhase1);
     elements.selectAllHigh.addEventListener('click', selectAllHighConfidence);
     elements.selectAll.addEventListener('click', selectAllTracks);
     elements.deselectAll.addEventListener('click', deselectAllTracks);
     elements.createBtn.addEventListener('click', handleCreatePlaylist);
-    
+
     // Search
     if (elements.trackSearch) {
         elements.trackSearch.addEventListener('input', (e) => {
@@ -185,15 +187,15 @@ function setupEventListeners() {
             filterTracks();
         });
     }
-    
+
     // Stat card filters
     setupStatCardFilters();
-    
+
     // Show more button
     if (elements.showMoreBtn) {
         elements.showMoreBtn.addEventListener('click', loadMoreTracks);
     }
-    
+
     // Phase 3: New playlist
     elements.newPlaylistBtn.addEventListener('click', goToPhase1);
 }
@@ -203,9 +205,9 @@ function setupStatCardFilters() {
     statCards.forEach(card => {
         card.addEventListener('click', () => {
             const filterType = card.classList.contains('stat-high') ? 'high' :
-                               card.classList.contains('stat-medium') ? 'medium' :
-                               card.classList.contains('stat-none') ? 'none' : null;
-            
+                card.classList.contains('stat-medium') ? 'medium' :
+                    card.classList.contains('stat-none') ? 'none' : null;
+
             // Toggle filter
             if (state.activeFilter === filterType) {
                 state.activeFilter = null;
@@ -216,7 +218,7 @@ function setupStatCardFilters() {
                 state.activeFilter = filterType;
                 card.classList.add('active');
             }
-            
+
             filterTracks();
         });
     });
@@ -226,7 +228,7 @@ function setupStatCardFilters() {
 
 async function handleFormSubmit(e) {
     e.preventDefault();
-    
+
     const url = elements.urlInput.value.trim();
     state.originalUrl = url;
     if (!url) {
@@ -236,7 +238,7 @@ async function handleFormSubmit(e) {
         setTimeout(() => elements.urlInput.classList.remove('shake'), 500);
         return;
     }
-    
+
     // Show progress
     elements.progressSection.style.display = 'block';
     elements.submitBtn.disabled = true;
@@ -246,24 +248,24 @@ async function handleFormSubmit(e) {
             <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
         </svg>
     `;
-    
+
     try {
         // Start preview task
         const formData = new FormData();
         formData.append('url', url);
         formData.append('csrfmiddlewaretoken', state.csrfToken);
-        
+
         const response = await fetch('/preview/', {
             method: 'POST',
             body: formData
         });
-        
+
         const data = await response.json();
         if (data.error) throw new Error(data.error);
-        
+
         state.currentTaskId = data.task_id;
         pollPreviewResult(data.task_id);
-        
+
     } catch (error) {
         showError(error.message);
         resetPhase1();
@@ -272,24 +274,24 @@ async function handleFormSubmit(e) {
 
 async function pollPreviewResult(taskId) {
     const progressUrl = `/celery-progress/${taskId}/`;
-    
+
     // Use CeleryProgressBar for visual progress
     CeleryProgressBar.initProgressBar(progressUrl, {
-        onProgress: function(progressBarElement, progressBarMessageElement, progress) {
+        onProgress: function (progressBarElement, progressBarMessageElement, progress) {
             elements.progressBar.style.width = `${progress.percent}%`;
             elements.progressMessage.textContent = `Finding remixes... ${progress.current}/${progress.total} tracks`;
         },
-        onSuccess: async function() {
+        onSuccess: async function () {
             // Fetch the actual result
             try {
                 const response = await fetch(`/preview/${taskId}/`);
                 const data = await response.json();
-                
+
                 if (data.status === 'complete') {
                     state.playlistName = data.result.playlist_name;
                     state.playlistImage = data.result.playlist_image;
                     state.tracks = data.result.tracks;
-                    
+
                     renderTrackSelection(data.result);
                     goToPhase2();
                 } else if (data.status === 'error') {
@@ -300,10 +302,10 @@ async function pollPreviewResult(taskId) {
                 resetPhase1();
             }
         },
-        onTaskError: function(progressBarElement, progressBarMessageElement, excMessage) {
+        onTaskError: function (progressBarElement, progressBarMessageElement, excMessage) {
             // Extract the clean error message from backend exceptions
             let errorMessage = 'Failed to find remixes. Please try again.';
-            
+
             if (excMessage) {
                 // Check for ValueError (our user-facing errors)
                 if (excMessage.includes('ValueError:')) {
@@ -316,7 +318,7 @@ async function pollPreviewResult(taskId) {
                         }
                         errorMessage = msg;
                     }
-                } 
+                }
                 // Handle raw SpotifyException (http status: 404, ...)
                 else if (excMessage.includes('http status: 404')) {
                     errorMessage = "This playlist is private or doesn't exist. Please use a public playlist.";
@@ -331,11 +333,11 @@ async function pollPreviewResult(taskId) {
                     errorMessage = excMessage;
                 }
             }
-            
+
             showError(errorMessage);
             resetPhase1();
         },
-        onError: function(progressBarElement, progressBarMessageElement, excMessage) {
+        onError: function (progressBarElement, progressBarMessageElement, excMessage) {
             // Generic error handler for network/parsing errors
             showError('Failed to find remixes. Please try again.');
             resetPhase1();
@@ -369,20 +371,22 @@ function resetCreateButton() {
 
 function renderTrackSelection(result) {
     // Update header
-    if (result.playlist_image) {
-        elements.playlistImage.src = result.playlist_image;
-        elements.playlistImage.style.display = 'block';
-    } else {
-        elements.playlistImage.style.display = 'none';
+    if (elements.playlistImage) {
+        if (result.playlist_image) {
+            elements.playlistImage.src = result.playlist_image;
+            elements.playlistImage.style.display = 'block';
+        } else {
+            elements.playlistImage.style.display = 'none';
+        }
     }
     elements.playlistName.textContent = result.playlist_name;
     elements.trackCount.textContent = `${result.total_tracks} tracks found`;
-    
+
     // Update stats
     elements.statHigh.textContent = result.summary.high_confidence;
     elements.statMedium.textContent = result.summary.medium_confidence;
     elements.statNone.textContent = result.summary.no_match;
-    
+
     // Store tracks and auto-select high confidence
     state.selectedTracks.clear();
     state.tracks = result.tracks || [];
@@ -391,17 +395,17 @@ function renderTrackSelection(result) {
             state.selectedTracks.set(track.best_match.id, track.best_match);
         }
     });
-    
+
     // Initialize search and progressive reveal
     state.searchQuery = '';
     state.filteredTracks = [...state.tracks];
     state.visibleTracksCount = state.tracksPerBatch;
-    
+
     // Clear search input
     if (elements.trackSearch) {
         elements.trackSearch.value = '';
     }
-    
+
     renderTrackList();
     updateShowMoreButton();
     updateSelectedCount();
@@ -409,10 +413,10 @@ function renderTrackSelection(result) {
 
 function filterTracks() {
     const query = state.searchQuery.toLowerCase().trim();
-    
+
     // Start with all tracks
     let filtered = [...state.tracks];
-    
+
     // Apply confidence filter
     if (state.activeFilter) {
         filtered = filtered.filter(track => {
@@ -426,7 +430,7 @@ function filterTracks() {
             return true;
         });
     }
-    
+
     // Apply search filter
     if (query) {
         filtered = filtered.filter(track => {
@@ -434,14 +438,14 @@ function filterTracks() {
             const originalArtist = (track.original.artists.join(' ') || '').toLowerCase();
             const remixName = track.best_match ? (track.best_match.name || '').toLowerCase() : '';
             const remixArtist = track.best_match ? (track.best_match.artists.join(' ') || '').toLowerCase() : '';
-            
-            return originalName.includes(query) || 
-                   originalArtist.includes(query) || 
-                   remixName.includes(query) || 
-                   remixArtist.includes(query);
+
+            return originalName.includes(query) ||
+                originalArtist.includes(query) ||
+                remixName.includes(query) ||
+                remixArtist.includes(query);
         });
     }
-    
+
     state.filteredTracks = filtered;
 
     // Reset visible count when filter changes
@@ -452,9 +456,9 @@ function filterTracks() {
 
 function renderTrackList() {
     const tracksToRender = state.filteredTracks.slice(0, state.visibleTracksCount);
-    
+
     elements.trackList.innerHTML = '';
-    
+
     if (state.filteredTracks.length === 0) {
         elements.trackList.innerHTML = `
             <div class="no-results">
@@ -475,9 +479,9 @@ function renderTrackList() {
 
 function updateShowMoreButton() {
     if (!elements.showMoreWrapper || !elements.showMoreBtn) return;
-    
+
     const remaining = state.filteredTracks.length - state.visibleTracksCount;
-    
+
     if (remaining > 0) {
         elements.showMoreWrapper.style.display = 'flex';
         const countSpan = elements.showMoreBtn.querySelector('.show-more-count');
@@ -492,7 +496,7 @@ function updateShowMoreButton() {
 
 function loadMoreTracks() {
     if (state.visibleTracksCount >= state.filteredTracks.length) return;
-    
+
     const currentCount = state.visibleTracksCount;
     const nextCount = Math.min(currentCount + state.tracksPerBatch, state.filteredTracks.length);
     const newTracks = state.filteredTracks.slice(currentCount, nextCount);
@@ -504,7 +508,7 @@ function loadMoreTracks() {
         fragment.appendChild(card);
     });
     elements.trackList.appendChild(fragment);
-    
+
     state.visibleTracksCount = nextCount;
     updateShowMoreButton();
 }
@@ -702,16 +706,16 @@ function createTrackCard(track, index) {
     const card = document.createElement('div');
     card.className = 'track-card';
     card.dataset.index = index;
-    
+
     const hasMatch = track.best_match !== null;
     const bestMatch = track.best_match;
-    
+
     // Check if this track is currently selected (from state, not just default)
     const isSelected = hasMatch && state.selectedTracks.has(bestMatch.id);
     if (isSelected) {
         card.classList.add('selected');
     }
-    
+
     const originalSpotifyUrl = (track.original && track.original.spotify_url) ? track.original.spotify_url : '';
 
     card.innerHTML = `
@@ -861,24 +865,24 @@ function createTrackCard(track, index) {
             `}
         </div>
     `;
-    
+
     // Event listeners
     const checkbox = card.querySelector('.remix-checkbox');
     if (checkbox) {
         checkbox.addEventListener('change', (e) => handleTrackToggle(e, track, bestMatch));
     }
-    
+
     const moreBtn = card.querySelector('.btn-more-options');
     if (moreBtn) {
         moreBtn.addEventListener('click', () => toggleMoreOptions(index));
     }
-    
+
     // Radio buttons for alternate options
     const altCheckboxes = card.querySelectorAll('.remix-alt-checkbox');
     altCheckboxes.forEach(cb => {
         cb.addEventListener('change', (e) => handleAlternateToggle(e, track, index, card));
     });
-    
+
     // Preview buttons
     const previewBtns = card.querySelectorAll('.btn-preview');
     previewBtns.forEach(btn => {
@@ -889,14 +893,14 @@ function createTrackCard(track, index) {
     });
 
     attachManualAddHandlers(card, index);
-    
+
     return card;
 }
 
 function handleTrackToggle(e, track, matchData) {
     const card = e.target.closest('.track-card');
     const remixOption = e.target.closest('.remix-option');
-    
+
     if (e.target.checked) {
         state.selectedTracks.set(matchData.id, matchData);
         card.classList.add('selected');
@@ -909,7 +913,7 @@ function handleTrackToggle(e, track, matchData) {
         }
         remixOption.classList.remove('selected');
     }
-    
+
     updateSelectedCount();
 }
 
@@ -939,7 +943,7 @@ function handleAlternateToggle(e, track, index, card) {
 function toggleMoreOptions(index) {
     const options = document.getElementById(`more-options-${index}`);
     const btn = document.querySelector(`.btn-more-options[data-index="${index}"]`);
-    
+
     if (options.style.display === 'none') {
         options.style.display = 'block';
         btn.classList.add('expanded');
@@ -986,15 +990,15 @@ function updateSelectedCount() {
     const count = state.selectedTracks.size;
     elements.selectedCount.textContent = count;
     elements.createBtn.disabled = count === 0;
-    elements.createBtn.querySelector('span').textContent = count === 0 
-        ? 'Select tracks' 
+    elements.createBtn.querySelector('span').textContent = count === 0
+        ? 'Select tracks'
         : `Create Playlist (${count})`;
-    
+
     // Update sticky bar
     if (elements.stickySelectedCount) {
         elements.stickySelectedCount.textContent = count;
     }
-    
+
     // Show/hide sticky bar based on selection
     if (elements.stickyBar) {
         if (count > 0) {
@@ -1009,9 +1013,9 @@ function updateSelectedCount() {
 
 async function handleCreatePlaylist() {
     const selectedIds = Array.from(state.selectedTracks.keys());
-    
+
     if (selectedIds.length === 0) return;
-    
+
     elements.createBtn.disabled = true;
     elements.createBtn.innerHTML = `
         <svg class="spinning" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1019,7 +1023,7 @@ async function handleCreatePlaylist() {
         </svg>
         <span>Creating...</span>
     `;
-    
+
     try {
         const response = await fetch('/create-playlist/', {
             method: 'POST',
@@ -1033,13 +1037,13 @@ async function handleCreatePlaylist() {
                 original_url: state.originalUrl
             })
         });
-        
+
         const data = await response.json();
         if (data.error) throw new Error(data.error);
-        
+
         // Poll for completion
         pollCreateResult(data.task_id);
-        
+
     } catch (error) {
         showError(error.message);
         elements.createBtn.disabled = false;
@@ -1057,7 +1061,7 @@ async function pollCreateResult(taskId) {
         try {
             const response = await fetch(`/create-playlist/${taskId}/`);
             const data = await response.json();
-            
+
             if (data.status === 'complete') {
                 showPhase3Success(data.result);
             } else if (data.status === 'error') {
@@ -1071,7 +1075,7 @@ async function pollCreateResult(taskId) {
             resetCreateButton();
         }
     };
-    
+
     checkResult();
 }
 
@@ -1085,47 +1089,47 @@ function showPhase3Success(result) {
 
 function handlePreviewClick(btn) {
     const previewUrl = btn.dataset.previewUrl;
-    
+
     // Don't do anything if no preview URL
     if (!previewUrl) {
         return;
     }
-    
+
     // If clicking the same button that's playing, stop it
     if (state.currentlyPlayingBtn === btn) {
         stopPreview();
         return;
     }
-    
+
     // Stop any currently playing preview
     stopPreview();
-    
+
     // Create audio player if it doesn't exist
     if (!state.audioPlayer) {
         state.audioPlayer = new Audio();
         state.audioPlayer.volume = 0.5;
-        
+
         // When audio ends, reset the button
         state.audioPlayer.addEventListener('ended', () => {
             stopPreview();
         });
-        
+
         // Handle errors
         state.audioPlayer.addEventListener('error', () => {
             stopPreview();
         });
     }
-    
+
     // Start playing
     state.audioPlayer.src = previewUrl;
     state.audioPlayer.play();
-    
+
     // Update button state
     state.currentlyPlayingBtn = btn;
     btn.classList.add('playing');
     btn.querySelector('.icon-play').style.display = 'none';
     btn.querySelector('.icon-pause').style.display = 'block';
-    
+
     // Auto-stop after 15 seconds (Spotify previews are ~30s)
     state.previewTimeout = setTimeout(() => {
         stopPreview();
@@ -1137,12 +1141,12 @@ function stopPreview() {
         state.audioPlayer.pause();
         state.audioPlayer.currentTime = 0;
     }
-    
+
     if (state.previewTimeout) {
         clearTimeout(state.previewTimeout);
         state.previewTimeout = null;
     }
-    
+
     if (state.currentlyPlayingBtn) {
         state.currentlyPlayingBtn.classList.remove('playing');
         state.currentlyPlayingBtn.querySelector('.icon-play').style.display = 'block';
@@ -1155,39 +1159,39 @@ function stopPreview() {
 
 function goToPhase1() {
     stopPreview(); // Stop any playing audio
-    elements.phaseInput.style.display = 'flex';
-    elements.phaseSelection.style.display = 'none';
-    elements.phaseSuccess.style.display = 'none';
+    if (elements.phaseInput) elements.phaseInput.style.display = 'flex';
+    if (elements.phaseSelection) elements.phaseSelection.style.display = 'none';
+    if (elements.phaseSuccess) elements.phaseSuccess.style.display = 'none';
     resetPhase1();
     resetCreateButton();
-    elements.urlInput.value = '';
+    if (elements.urlInput) elements.urlInput.value = '';
     state.tracks = [];
     state.selectedTracks.clear();
     state.activeFilter = null;
-    
+
     // Hide sticky bar
     if (elements.stickyBar) {
         elements.stickyBar.classList.remove('visible');
     }
-    
+
     // Reset stat card active states
     document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
 }
 
 function goToPhase2() {
-    elements.phaseInput.style.display = 'none';
-    elements.phaseSelection.style.display = 'block';
-    elements.phaseSuccess.style.display = 'none';
-    
+    if (elements.phaseInput) elements.phaseInput.style.display = 'none';
+    if (elements.phaseSelection) elements.phaseSelection.style.display = 'block';
+    if (elements.phaseSuccess) elements.phaseSuccess.style.display = 'none';
+
     // Scroll to top
     window.scrollTo(0, 0);
 }
 
 function goToPhase3() {
-    elements.phaseInput.style.display = 'none';
-    elements.phaseSelection.style.display = 'none';
-    elements.phaseSuccess.style.display = 'flex';
-    
+    if (elements.phaseInput) elements.phaseInput.style.display = 'none';
+    if (elements.phaseSelection) elements.phaseSelection.style.display = 'none';
+    if (elements.phaseSuccess) elements.phaseSuccess.style.display = 'flex';
+
     // Hide sticky bar
     if (elements.stickyBar) {
         elements.stickyBar.classList.remove('visible');
