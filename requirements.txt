@@ -18,7 +18,7 @@ Django>=5.1
 django-allauth==0.50.0
 django-celery-results
 django-debug-toolbar
-gunicorn==20.1.0
+gunicorn==22.0.0
 idna==3.3
 kombu
 oauthlib==3.2.0
