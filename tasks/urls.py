@@ -14,8 +14,4 @@ urlpatterns = [
     # Stats & recent playlists
     path('recent-playlists/', views.recent_playlists, name="recent_playlists"),
     path('playlist-count/', views.playlist_count, name="playlist_count"),
-    
-    # Debug endpoint (bypasses Celery)
-    path('debug-search/', views.debug_spotify_search, name="debug_spotify_search"),
-    
 ]
