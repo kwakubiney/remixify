@@ -536,6 +536,11 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
 
     base_title = normalize_title(track.get("original_name") or track.get("clean_name") or "")
     primary_artist = (track.get("artists") or [""])[0]
+    
+    # Early exit if base_title is empty after normalization - prevents 400 errors from Spotify
+    if not base_title.strip():
+        logger.warning(f"[{thread_id}] Skipping track with empty base_title: {track.get('original_name', 'Unknown')}")
+        return []
     # If the original track name contains mix/remix/edit markers, it's a hint that the playlist track might
     # itself be a *version*.
     # In that case: do a reverse lookup to find the *canonical/original* song first, then search alternates.
@@ -609,6 +614,11 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
     
     import time as time_module
     for query_idx, query in enumerate(search_queries):
+        # Skip empty queries to avoid 400 errors from Spotify
+        if not query.strip():
+            logger.warning(f"[{thread_id}] Skipping empty query for track: {track_name}")
+            continue
+        
         # Small delay between queries to avoid rate limiting (except first query)
         if query_idx > 0:
             time_module.sleep(0.2)
