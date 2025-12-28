@@ -1,7 +1,6 @@
 from celery import shared_task
 import re
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from difflib import SequenceMatcher
 from celery_progress.backend import ProgressRecorder
 from tasks.helpers import chunker, get_playlist_id
@@ -134,7 +133,6 @@ def normalize_title(title):
         flags=re.IGNORECASE,
     )
     
-    # Remove trailing/leading punctuation and whitespace
     title = re.sub(r'^[\s\-–—:]+|[\s\-–—:]+$', '', title)
     
     return title.strip()
@@ -191,7 +189,6 @@ def extract_remix_base_title(remix_name):
     name = re.sub(r'\s*\(([^)]+)\)', remove_remix_parens, name)
     name = re.sub(r'\s*\[([^\]]+)\]', remove_remix_parens, name)
     
-    # Clean up
     name = re.sub(r'\s+', ' ', name).strip()
     
     return name
@@ -214,7 +211,6 @@ def artist_tokens(name: str) -> set[str]:
     if not norm:
         return set()
     tokens = set(norm.split())
-    # remove very common tokens that don't help identify an artist
     tokens -= {"the", "dj", "mc"}
     return tokens
 
@@ -276,8 +272,7 @@ def calculate_match_confidence(original_name, original_artists, remix_track):
     stop_words = {"the", "a", "an", "of", "and", "or", "to", "in", "on", "at", "for", "is", "it", "my", "your", "i", "you", "me", "we"}
     original_significant = original_words - stop_words
     remix_significant = remix_words - stop_words
-    
-    # Fallback if all words are stop words
+
     if not original_significant:
         original_significant = original_words
     if not remix_significant:
@@ -332,8 +327,7 @@ def calculate_match_confidence(original_name, original_artists, remix_track):
             score += 25
             reasons.append("moderate_word_overlap")
         # Lower overlap = no match
-    
-    # If no title match found, reject immediately
+
     if score == 0:
         return 0, ["title_mismatch"]
     
@@ -415,14 +409,11 @@ def get_playlist(url):
     
     logger.info(f"Extracted playlist ID: {playlist_id}")
     
-    # Check if this is a Spotify-generated playlist (known limitation)
-    # These IDs start with '37i9dQZF1' (Daily Mix, Discover Weekly, etc.)
     is_spotify_generated = playlist_id and playlist_id.startswith('37i9dQZF1')
     if is_spotify_generated:
         logger.warning(f"Spotify-generated playlist detected: {playlist_id}")
         raise ValueError("Spotify-generated playlists (like Daily Mix, Discover Weekly, or artist \"This Is\" playlists) aren't accessible via the API. Please use a playlist you or someone else created.")
     
-    pattern = re.compile(r"\(.*?\)")
     logger.info(f"About to get Spotify client...")
     try:
         sp = get_spotify_client()
@@ -441,7 +432,6 @@ def get_playlist(url):
     except SpotifyException as e:
         logger.error(f"SpotifyException for playlist {playlist_id}: {e.http_status} - {str(e)}")
         if e.http_status == 404:
-            # Double-check for Spotify-generated playlists that slipped through
             if playlist_id and playlist_id.startswith('37i'):
                 raise ValueError("This appears to be a Spotify-generated playlist which isn't accessible via the API. Please use a playlist you or someone else created.")
             raise ValueError("This playlist is private or doesn't exist. Please use a public playlist.")
@@ -469,18 +459,15 @@ def get_playlist(url):
 
     for item in items:
         track = item["track"]
-        # Skip null tracks, local files, or tracks without required data
         if track is None or not track.get("id") or not track.get("external_urls"):
             continue
             
         name = track["name"]
-        # Clean name for searching: strip remix/mix/edit/version/remaster/etc.
-        # Important for cases where the source track is *already* a remix/edit.
         clean_name = normalize_title(name)
         
         artists = [artist["name"] for artist in track.get("artists", [])]
         tracks.append({
-            "id": track["id"],  # Include track ID to exclude originals
+            "id": track["id"],
             "original_name": name,
             "clean_name": clean_name,
             "artists": artists,
@@ -493,30 +480,14 @@ def get_playlist(url):
 
 
 def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
-    """
-    Search for remix candidates for a single track.
-    Returns multiple options with confidence scores.
-    Only returns actual remixes (tracks with remix keywords in name).
-    
-    OPTIMIZED: 
-    - Reduced to 2 queries (best first)
-    - Early termination if high-confidence match found
-    - Increased limit per query to reduce total API calls
-    """
-    import threading
-    thread_id = threading.current_thread().name
+    """Search for remix candidates for a single track."""
     track_name = track.get("original_name", "Unknown")
-    logger.info(f"[{thread_id}] find_remix_candidates START: {track_name}")
+    logger.info(f"find_remix_candidates START: {track_name}")
     
     candidates = []
     seen_ids = set()
-    
-    # Exclude the original track if we have its ID
     if original_track_id:
         seen_ids.add(original_track_id)
-    
-    # Build a base title for searching even if the playlist track is already a remix/edit.
-    # Example: "Fall For You (Sandy Rivera's Classic Mix) - Moodymann Edit" -> "fall for you"
     version_hint_words = [
         "remix",
         "remixed",
@@ -537,13 +508,9 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
     base_title = normalize_title(track.get("original_name") or track.get("clean_name") or "")
     primary_artist = (track.get("artists") or [""])[0]
     
-    # Early exit if base_title is empty after normalization - prevents 400 errors from Spotify
     if not base_title.strip():
-        logger.warning(f"[{thread_id}] Skipping track with empty base_title: {track.get('original_name', 'Unknown')}")
+        logger.warning(f"Skipping track with empty base_title: {track.get('original_name', 'Unknown')}")
         return []
-    # If the original track name contains mix/remix/edit markers, it's a hint that the playlist track might
-    # itself be a *version*.
-    # In that case: do a reverse lookup to find the *canonical/original* song first, then search alternates.
     original_name_lc = (track.get("original_name") or "").lower()
     original_already_versioned = any(w in original_name_lc for w in version_hint_words)
 
@@ -556,7 +523,6 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
         if not title or not artist:
             return None, title
 
-        # Use only documented field filters; then do deterministic post-filtering below.
         query = f"track:{title} artist:{artist}"
         try:
             res = sp.search(query, type="track", limit=20)
@@ -589,15 +555,7 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
         if canonical_track_id:
             seen_ids.add(canonical_track_id)
 
-    # IMPORTANT: when the playlist track is already a version (mix/edit/etc), we still want to match
-    # candidates against the canonical/base title, not the full versioned title.
     match_original_title = search_seed_title if original_already_versioned else (track.get("clean_name") or base_title)
-
-    # Search strategy (ordered):
-    # 1) Base title + primary artist + remix (best precision)
-    # 2) Base title + remix
-    # 3) Base title + primary artist (fallback to collect versioned titles; scoring will filter to remixes)
-    # 4) If original already includes remix-ish words, also try "version" queries.
     search_queries = [
         f"{search_seed_title} {primary_artist} remix",
         f"{search_seed_title} remix",
@@ -614,19 +572,15 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
     
     import time as time_module
     for query_idx, query in enumerate(search_queries):
-        # Skip empty queries to avoid 400 errors from Spotify
         if not query.strip():
-            logger.warning(f"[{thread_id}] Skipping empty query for track: {track_name}")
+            logger.warning(f"Skipping empty query for track: {track_name}")
             continue
-        
-        # Small delay between queries to avoid rate limiting (except first query)
         if query_idx > 0:
             time_module.sleep(0.2)
         try:
-            # Increased limit to 10 to get more candidates per query
-            logger.info(f"[{thread_id}] Starting search: {query[:50]}...")
+            logger.info(f"Starting search: {query[:50]}...")
             results = sp.search(query, type="track", limit=10)
-            logger.info(f"[{thread_id}] Search completed, got {len(results.get('tracks', {}).get('items', []))} results")
+            logger.info(f"Search completed, got {len(results.get('tracks', {}).get('items', []))} results")
             for item in results["tracks"]["items"]:
                 if item["id"] in seen_ids:
                     continue
@@ -652,32 +606,23 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
                         "match_reasons": reasons,
                         "duration_ms": item["duration_ms"]
                     })
-            
-            # EARLY TERMINATION: Stop if we found a high-confidence match
+
             high_confidence_found = any(c["confidence"] >= 70 for c in candidates)
             if high_confidence_found and len(candidates) >= num_candidates:
                 break
                 
         except Exception as e:
-            logger.warning(f"[{thread_id}] Search failed: {type(e).__name__}: {str(e)[:100]}")
-            continue
-    
-    # Filter out low confidence matches (< 40) - only keep best and medium
+            logger.warning(f"Search failed: {type(e).__name__}: {str(e)[:100]}")
+
     candidates = [c for c in candidates if c["confidence"] >= 40]
-    
-    # Sort by confidence and return top candidates
     candidates.sort(key=lambda x: x["confidence"], reverse=True)
-    logger.info(f"[{thread_id}] find_remix_candidates END: {track_name} - found {len(candidates[:num_candidates])} candidates")
+    logger.info(f"find_remix_candidates END: {track_name} - found {len(candidates[:num_candidates])} candidates")
     return candidates[:num_candidates]
 
 
 @shared_task(bind=True)
 def preview_remixes(self, url):
-    """
-    Phase 1: Find remix candidates for all tracks and return for user review.
-    
-    OPTIMIZED: Uses parallel processing with ThreadPoolExecutor for ~5x faster results.
-    """
+    """Find remix candidates for all tracks and return for user review."""
     from spotipy.exceptions import SpotifyException
     
     logger.info(f"========================================")
@@ -707,11 +652,9 @@ def preview_remixes(self, url):
             "tracks": []
         }
     except ValueError as e:
-        # User-friendly errors from get_playlist
         logger.error(f"ValueError in get_playlist: {str(e)}")
         raise
     except SpotifyException as e:
-        # Catch any Spotify errors that weren't handled in get_playlist
         logger.error(f"SpotifyException in preview_remixes: {e.http_status} - {str(e)}", exc_info=True)
         if e.http_status == 404:
             raise ValueError("This playlist is private or doesn't exist. Please use a public playlist.")
@@ -722,30 +665,15 @@ def preview_remixes(self, url):
     except Exception as e:
         logger.error(f"Unexpected exception in preview_remixes: {type(e).__name__}: {str(e)}", exc_info=True)
         raise ValueError("Something went wrong. Please try again.")
-    
-    # Process tracks SEQUENTIALLY to avoid thread-safety issues with shared Spotify client
-    # The sp client's connection pool may hang when used from multiple threads
-    # TODO: Once this works, create separate sp client per thread for parallelism
-    results_dict = {}  # Store results by index to maintain order
+
+    results_dict = {}
     completed_count = 0
     failed_count = 0
     
-    # Token warmup is no longer needed since get_playlist() already made successful API calls.
-    # The token has been cached by CentralAccountCacheHandler and will be reused by all threads.
-    # Previously, an extra sp.current_user() call here was triggering Spotify rate limits (429).
-    logger.info("Token already validated via playlist fetch - skipping warmup call")
-    
-    logger.info("Starting SEQUENTIAL track processing (no thread pool)")
+    logger.info("Starting track processing")
     logger.info(f"Processing {total_tracks} tracks...")
-    
-    # CRITICAL: Create a FRESH Spotify client for search operations
-    # The sp client from get_playlist() may have corrupted SSL connections after Celery fork
-    # Creating a new client ensures fresh connections
-    logger.info("Creating fresh Spotify client for search operations...")
+
     sp_search = get_spotify_client()
-    logger.info("Fresh Spotify client created successfully")
-    
-    # Simple sequential for loop - no threading at all
     for i, track in enumerate(tracks):
         try:
             logger.info(f"Processing track {i+1}/{total_tracks}: {track.get('original_name', 'Unknown')[:50]}")
@@ -787,12 +715,10 @@ def preview_remixes(self, url):
         completed_count,
         failed_count,
     )
-    
-    # Sort results back to original order
+
     for i in range(total_tracks):
         preview_results["tracks"].append(results_dict[i])
     
-    # Calculate summary statistics
     high_confidence_count = 0
     medium_confidence_count = 0
     low_confidence_count = 0

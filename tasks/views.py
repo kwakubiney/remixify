@@ -81,10 +81,7 @@ def resolve_track(request):
 @csrf_protect
 @require_http_methods(["POST"])
 def preview(request):
-    """
-    Phase 1: Start the preview task to find remix candidates.
-    Returns a task_id to poll for results.
-    """
+    """Start the preview task to find remix candidates."""
     url = request.POST.get("url")
     
     logger.info(f"Preview request received - URL: {url}, User: {request.user}")
@@ -92,8 +89,7 @@ def preview(request):
     if not url:
         logger.warning(f"Preview request without URL from user: {request.user}")
         return JsonResponse({"error": "URL is required"}, status=400)
-    
-    # Validate playlist URL before queuing task
+
     try:
         get_playlist_id(url)
     except ValueError as e:
@@ -111,9 +107,7 @@ def preview(request):
 
 @require_http_methods(["GET"])
 def get_preview_result(request, task_id):
-    """
-    Get the result of a preview task.
-    """
+    """Get the result of a preview task."""
     result = AsyncResult(task_id)
     
     if result.ready():
@@ -137,12 +131,7 @@ def get_preview_result(request, task_id):
 @csrf_protect
 @require_http_methods(["POST"])
 def create_playlist(request):
-    """
-    Phase 2: Create the playlist with user-selected tracks on the central account.
-    Expects JSON body with playlist_name and selected_tracks array.
-    
-    No authentication required - playlist is created and made public.
-    """
+    """Create the playlist with user-selected tracks."""
     try:
         data = json.loads(request.body)
         playlist_name = data.get("playlist_name", "My Playlist")
@@ -169,9 +158,7 @@ def create_playlist(request):
 
 @require_http_methods(["GET"])
 def get_create_result(request, task_id):
-    """
-    Get the result of a playlist creation task.
-    """
+    """Get the result of a playlist creation task."""
     result = AsyncResult(task_id)
     
     if result.ready():
@@ -194,10 +181,7 @@ def get_create_result(request, task_id):
 
 @require_http_methods(["GET"])
 def recent_playlists(request):
-    """
-    Get the 3 most recently created playlists.
-    Returns playlist name, URL, image, and track count.
-    """
+    """Get the 3 most recently created playlists."""
     playlists = CreatedPlaylist.objects.all()[:3]
     
     data = [
@@ -215,10 +199,7 @@ def recent_playlists(request):
 
 @require_http_methods(["GET"])
 def playlist_count(request):
-    """
-    Get the total number of playlists created (from Redis).
-    Fast counter for display on homepage.
-    """
+    """Get the total number of playlists created."""
     from tasks.redis_utils import get_playlist_count
     count = get_playlist_count()
     return JsonResponse({"count": count})
@@ -226,11 +207,7 @@ def playlist_count(request):
 
 @require_http_methods(["GET"])
 def debug_spotify_search(request):
-    """
-    DEBUG ENDPOINT: Test Spotify search using raw requests to bypass spotipy.
-    
-    Usage: GET /debug-search/?q=fever+remix
-    """
+    """DEBUG: Test Spotify search endpoint."""
     import time
     import requests as raw_requests
     
