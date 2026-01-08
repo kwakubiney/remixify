@@ -39,7 +39,7 @@ six==1.16.0
 spotipy>=2.24.0
 sqlparse==0.4.2
 typing_extensions==4.2.0
-urllib3==1.26.9
+urllib3==2.6.3
 vine
 wcwidth==0.2.5
 whitenoise==6.0.0
