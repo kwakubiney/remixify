@@ -1,6 +1,8 @@
 from celery import shared_task
 import re
 import logging
+import time
+from concurrent.futures import ThreadPoolExecutor
 from difflib import SequenceMatcher
 from celery_progress.backend import ProgressRecorder
 from tasks.helpers import chunker, get_playlist_id
@@ -451,8 +453,13 @@ def get_playlist(url):
     items += data["tracks"]["items"]
     next_page = data["tracks"]["next"]
     results = data["tracks"]
-
+    
+    # Paginate through all tracks
+    page_count = 0
     while next_page is not None:
+        page_count += 1
+        if page_count % 5 == 0:
+            logger.info(f"Fetching playlist page {page_count}... ({len(items)} tracks so far)")
         results = sp.next(results)
         items.extend(results["items"])
         next_page = results.get("next")
@@ -571,12 +578,16 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
         )
     
     import time as time_module
+    # We use the global time module now, but keeping this for minimal diff if needed
     for query_idx, query in enumerate(search_queries):
         if not query.strip():
             logger.warning(f"Skipping empty query for track: {track_name}")
             continue
+        
+        # Rate limiting kindness: sleep briefly between queries for the same track
         if query_idx > 0:
-            time_module.sleep(0.2)
+            time.sleep(0.05)
+            
         try:
             logger.info(f"Starting search: {query[:50]}...")
             results = sp.search(query, type="track", limit=10)
@@ -620,6 +631,30 @@ def find_remix_candidates(sp, track, num_candidates=3, original_track_id=None):
     return candidates[:num_candidates]
 
 
+def process_single_track(track, original_track_id):
+    """
+    Helper function to process a single track. 
+    Intended to be run in a thread.
+    Creates its own Spotify client instance to ensure thread safety and rotation state isolation.
+    """
+    sp_search = get_spotify_client()
+    try:
+        candidates = find_remix_candidates(sp_search, track, original_track_id=original_track_id)
+        return {
+            "status": "success",
+            "candidates": candidates,
+            "has_high_confidence": any(c["confidence_level"] == "high" for c in candidates)
+        }
+    except Exception as e:
+        logger.warning(f"Track processing failed: {type(e).__name__}: {str(e)[:100]}")
+        return {
+            "status": "failed",
+            "candidates": [],
+            "has_high_confidence": False,
+            "error": str(e)
+        }
+
+
 @shared_task(bind=True)
 def preview_remixes(self, url):
     """Find remix candidates for all tracks and return for user review."""
@@ -635,6 +670,9 @@ def preview_remixes(self, url):
         logger.info(f"Creating ProgressRecorder...")
         progress_recorder = ProgressRecorder(self)
         logger.info(f"ProgressRecorder created successfully")
+        
+        # Set early progress to show task has started (loading playlist phase)
+        progress_recorder.set_progress(0, 100, description="Loading playlist...")
         
         logger.info(f"Calling get_playlist...")
         playlist_info, tracks, sp = get_playlist(url)
@@ -652,7 +690,8 @@ def preview_remixes(self, url):
             "tracks": []
         }
     except ValueError as e:
-        logger.error(f"ValueError in get_playlist: {str(e)}")
+        # User input errors (invalid playlist URLs, private playlists) - don't report to Sentry
+        logger.warning(f"User input error in get_playlist: {str(e)}")
         raise
     except SpotifyException as e:
         logger.error(f"SpotifyException in preview_remixes: {e.http_status} - {str(e)}", exc_info=True)
@@ -673,41 +712,52 @@ def preview_remixes(self, url):
     logger.info("Starting track processing")
     logger.info(f"Processing {total_tracks} tracks...")
 
-    sp_search = get_spotify_client()
-    for i, track in enumerate(tracks):
-        try:
-            logger.info(f"Processing track {i+1}/{total_tracks}: {track.get('original_name', 'Unknown')[:50]}")
-            candidates = find_remix_candidates(sp_search, track, original_track_id=track.get("id"))
-            results_dict[i] = {
-                "original": {
-                    "name": track["original_name"],
-                    "artists": track["artists"],
-                    "album_art": track["album_art"],
-                    "spotify_url": track["spotify_url"]
-                },
-                "candidates": candidates,
-                "best_match": candidates[0] if candidates else None,
-                "has_high_confidence": any(c["confidence_level"] == "high" for c in candidates)
-            }
-        except Exception as e:
-            logger.warning(f"Track {i} failed: {type(e).__name__}: {str(e)[:100]}")
-            failed_count += 1
-            results_dict[i] = {
-                "original": {
-                    "name": track["original_name"],
-                    "artists": track["artists"],
-                    "album_art": track["album_art"],
-                    "spotify_url": track["spotify_url"]
-                },
-                "candidates": [],
-                "best_match": None,
-                "has_high_confidence": False
-            }
+    # Use ThreadPoolExecutor to process tracks in parallel.
+    # max_workers=5 gives us 5x throughput per worker process.
+    # With 4 concurrent workers (Fly config), we can have 20 total active requests.
+    # Each thread will use its own "backoff-aware" Spotify client.
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        # Submit all tasks
+        future_to_index = {
+            executor.submit(process_single_track, track, track.get("id")): i 
+            for i, track in enumerate(tracks)
+        }
         
-        completed_count += 1
-        if completed_count % 10 == 0 or completed_count == 1:
-            logger.info(f"Progress update: {completed_count}/{total_tracks} tracks processed")
-        progress_recorder.set_progress(completed_count, total_tracks)
+        from concurrent.futures import as_completed
+        for future in as_completed(future_to_index):
+            i = future_to_index[future]
+            track = tracks[i]
+            
+            try:
+                result = future.result()
+                if result["status"] == "failed":
+                    failed_count += 1
+                
+                results_dict[i] = {
+                    "original": {
+                        "name": track["original_name"],
+                        "artists": track["artists"],
+                        "album_art": track["album_art"],
+                        "spotify_url": track["spotify_url"]
+                    },
+                    "candidates": result["candidates"],
+                    "best_match": result["candidates"][0] if result["candidates"] else None,
+                    "has_high_confidence": result["has_high_confidence"]
+                }
+            except Exception as e:
+                logger.error(f"Thread execution failed for track {i}: {str(e)}")
+                failed_count += 1
+                results_dict[i] = {
+                    "original": track,
+                    "candidates": [],
+                    "best_match": None,
+                    "has_high_confidence": False
+                }
+
+            completed_count += 1
+            if completed_count % 10 == 0 or completed_count == 1:
+                logger.info(f"Progress update: {completed_count}/{total_tracks} tracks processed")
+            progress_recorder.set_progress(completed_count, total_tracks)
 
     logger.info(
         "preview_remixes complete: total_tracks=%s processed=%s failed=%s",
@@ -755,11 +805,26 @@ def create_remix_playlist(self, playlist_name, selected_tracks, original_url):
     
     The playlist is created and made public so users can access it.
     """
+    from spotipy.exceptions import SpotifyException
+    
     progress_recorder = ProgressRecorder(self)
     sp = get_spotify_client()
     
     # Get original playlist info for author
-    playlist_info, _, _ = get_playlist(original_url)
+    try:
+        playlist_info, _, _ = get_playlist(original_url)
+    except ValueError as e:
+        # User input errors - don't report to Sentry
+        logger.warning(f"User input error in create_remix_playlist get_playlist: {str(e)}")
+        raise
+    except SpotifyException as e:
+        logger.error(f"SpotifyException in create_remix_playlist: {e.http_status} - {str(e)}", exc_info=True)
+        if e.http_status == 404:
+            raise ValueError("Original playlist not found. It may have been deleted or made private.")
+        elif e.http_status == 429:
+            raise ValueError("Too many requests. Please try again in a moment.")
+        else:
+            raise ValueError("Unable to load original playlist. Please try again.")
     
     user_id = sp.me()["id"]
     

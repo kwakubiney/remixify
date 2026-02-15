@@ -194,7 +194,9 @@ class RotatingSpotifyClient:
     def _call_with_retry(self, method_name, *args, **kwargs):
         """Execute method with automatic rotation on 429."""
         attempts = 0
-        max_attempts = len(self._available_indices) * 2 # Allow one full rotation + safety
+        # Allow one full rotation + safety, plus exponential backoff retries
+        max_attempts = (len(self._available_indices) * 3) + 5
+        base_delay = 2  # Base delay for exponential backoff
         
         while attempts < max_attempts:
             client = self._get_client()
@@ -207,16 +209,27 @@ class RotatingSpotifyClient:
                 return method(*args, **kwargs)
             except spotipy.exceptions.SpotifyException as e:
                 if e.http_status == 429:
-                    logger.warning(f"[ROTATION] 429 Rate Limit detected during {method_name}. Attempting rotation...")
+                    retry_after = int(e.headers.get("Retry-After", base_delay))
+                    logger.warning(f"[ROTATION] 429 Rate Limit detected during {method_name}. Retry-After: {retry_after}s")
+                    
                     rotated = self._rotate_client()
                     if rotated:
                         attempts += 1
                         time.sleep(1) # Brief pause before retry
                         continue
                     else:
-                        # No options left
-                        logger.error("[ROTATION] 429 detected but no other clients available to rotate to.")
-                        raise e
+                        # No options left to rotate to.
+                        # Use exponential backoff with jitter to avoid thundering herd
+                        sleep_time = min(retry_after, 30) # Cap sleep at 30s to prevent worker hangs
+                        # Add exponential backoff based on attempts
+                        backoff = min(base_delay * (2 ** (attempts // 2)), 60)
+                        sleep_time = max(sleep_time, backoff)
+                        # Add small jitter to prevent synchronized retries
+                        sleep_time += random.uniform(0, 1)
+                        logger.warning(f"[ROTATION] Rotation exhausted. Attempt {attempts}/{max_attempts}. Sleeping for {sleep_time:.1f}s and retrying...")
+                        time.sleep(sleep_time)
+                        attempts += 1
+                        continue
                 else:
                     # Other spotify errors bubble up normally
                     raise e
@@ -224,7 +237,10 @@ class RotatingSpotifyClient:
                 # Other generic errors
                 raise e
         
-        raise Exception("Max retry attempts exceeded in RotatingSpotifyClient")
+        # Log warning instead of raising exception to prevent Sentry spam
+        # This is a rate limit issue, not a bug - it will resolve when limits reset
+        logger.error(f"[ROTATION] Max retry attempts ({max_attempts}) exceeded in RotatingSpotifyClient after multiple rate limit retries. Consider adding more Spotify clients or increasing rate limits.")
+        raise Exception(f"Spotify API rate limit exceeded. Please try again in a few minutes.")
 
 
 def get_spotify_client():
