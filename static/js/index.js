@@ -573,7 +573,6 @@ function attachManualAddHandlers(card, trackIndex) {
         status.classList.remove('error');
 
         try {
-            const wasPanelOpen = panel.style.display === 'flex';
             const wasMoreOptionsOpen = (() => {
                 const optionsEl = card.querySelector('.more-options');
                 return !!optionsEl && optionsEl.style.display !== 'none';
@@ -641,30 +640,9 @@ function attachManualAddHandlers(card, trackIndex) {
             status.classList.remove('error');
             status.classList.add('success');
 
-            // Keep the panel open for rapid consecutive adds.
-            // Clear the input and gently fade the status after a moment.
-            input.value = '';
-            input.focus();
-            window.setTimeout(() => {
-                status.textContent = '';
-                status.classList.remove('success');
-            }, 1200);
-
             // Rebuild the card so the new option appears under "more options".
             const newCard = createTrackCard(track, trackIndex);
             card.replaceWith(newCard);
-
-            // Preserve UX state (keep things open) to avoid a jarring "collapse" feeling.
-            if (wasPanelOpen) {
-                const newPanel = newCard.querySelector('.manual-add');
-                const newBtn = newCard.querySelector('.btn-add-link');
-                const newInput = newCard.querySelector('.manual-add-input');
-                if (newPanel && newBtn && newInput) {
-                    newPanel.style.display = 'flex';
-                    newBtn.setAttribute('aria-expanded', 'true');
-                    newInput.focus();
-                }
-            }
 
             if (wasMoreOptionsOpen) {
                 const moreOptionsEl = newCard.querySelector('.more-options');
@@ -730,10 +708,10 @@ function createTrackCard(track, index) {
                     </a>
                 ` : ''}
             </div>
-            <div class="track-info">
-                <span class="track-name">${escapeHtml(track.original.name)}</span>
-                <span class="track-artists">${escapeHtml(track.original.artists.join(', '))}</span>
-                <div class="track-actions">
+                <div class="track-info">
+                    <span class="track-name">${escapeHtml(track.original.name)}</span>
+                    <span class="track-artists">${escapeHtml(track.original.artists.join(', '))}</span>
+                    <div class="track-actions">
                     <a class="track-action-link" 
                        href="https://open.spotify.com/search/${encodeURIComponent(track.original.artists[0] + ' ' + track.original.name)}" 
                        target="_blank" 
@@ -751,6 +729,7 @@ function createTrackCard(track, index) {
                         </svg>
                         Add link
                     </button>
+                </div>
                 </div>
                 <div class="manual-add" style="display: none;">
                     <input class="manual-add-input" type="text" placeholder="Paste Spotify track link" inputmode="url" autocomplete="off">

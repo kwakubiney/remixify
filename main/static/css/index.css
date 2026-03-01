@@ -1234,9 +1234,14 @@
 .track-original {
     display: flex;
     flex-direction: row;
-    align-items: center;
+    flex-wrap: wrap;
+    align-items: flex-start;
     gap: 0.75rem;
     min-width: 0;
+}
+
+.track-original > .track-info {
+    flex: 1 1 0;
 }
 
 .track-art {
@@ -1376,7 +1381,13 @@
     gap: 0.4rem;
     flex-wrap: wrap;
     align-items: center;
+    width: 100%;
+    box-sizing: border-box;
     animation: slideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.track-original > .manual-add {
+    flex: 1 0 100%;
 }
 
 @keyframes slideDown {
@@ -1392,7 +1403,7 @@
 
 .manual-add-input {
     flex: 1 1 200px;
-    min-width: 160px;
+    min-width: 0;
     padding: 0.4rem 0.7rem;
     border-radius: 999px;
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -2140,4 +2151,3 @@
    TOAST NOTIFICATIONS
    =========================================== */
 /* Toastify JS styles are loaded from CDN */
-

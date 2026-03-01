@@ -1,8 +1,8 @@
 from celery import shared_task
+from celery.exceptions import SoftTimeLimitExceeded
 import re
 import logging
 import time
-from concurrent.futures import ThreadPoolExecutor
 from difflib import SequenceMatcher
 from celery_progress.backend import ProgressRecorder
 from tasks.helpers import chunker, get_playlist_id
@@ -655,9 +655,14 @@ def process_single_track(track, original_track_id):
         }
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, soft_time_limit=300, time_limit=330)
 def preview_remixes(self, url):
-    """Find remix candidates for all tracks and return for user review."""
+    """Find remix candidates for all tracks and return for user review.
+    
+    Time limits:
+    - soft_time_limit=300: Raises SoftTimeLimitExceeded after 5 minutes, allowing graceful cleanup
+    - time_limit=330: Hard kill after 5.5 minutes if soft limit handling fails
+    """
     from spotipy.exceptions import SpotifyException
     
     logger.info(f"========================================")
@@ -712,27 +717,16 @@ def preview_remixes(self, url):
     logger.info("Starting track processing")
     logger.info(f"Processing {total_tracks} tracks...")
 
-    # Use ThreadPoolExecutor to process tracks in parallel.
-    # max_workers=5 gives us 5x throughput per worker process.
-    # With 4 concurrent workers (Fly config), we can have 20 total active requests.
-    # Each thread will use its own "backoff-aware" Spotify client.
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        # Submit all tasks
-        future_to_index = {
-            executor.submit(process_single_track, track, track.get("id")): i 
-            for i, track in enumerate(tracks)
-        }
-        
-        from concurrent.futures import as_completed
-        for future in as_completed(future_to_index):
-            i = future_to_index[future]
-            track = tracks[i]
-            
+    # Process tracks sequentially inside this task.
+    # Celery worker-level threading now handles concurrency across tasks,
+    # which avoids nested threading and reduces Spotify API burst pressure.
+    try:
+        for i, track in enumerate(tracks):
             try:
-                result = future.result()
+                result = process_single_track(track, track.get("id"))
                 if result["status"] == "failed":
                     failed_count += 1
-                
+
                 results_dict[i] = {
                     "original": {
                         "name": track["original_name"],
@@ -745,10 +739,15 @@ def preview_remixes(self, url):
                     "has_high_confidence": result["has_high_confidence"]
                 }
             except Exception as e:
-                logger.error(f"Thread execution failed for track {i}: {str(e)}")
+                logger.error(f"Track processing failed for track {i}: {str(e)}")
                 failed_count += 1
                 results_dict[i] = {
-                    "original": track,
+                    "original": {
+                        "name": track.get("original_name", "Unknown"),
+                        "artists": track.get("artists", []),
+                        "album_art": track.get("album_art"),
+                        "spotify_url": track.get("spotify_url")
+                    },
                     "candidates": [],
                     "best_match": None,
                     "has_high_confidence": False
@@ -758,6 +757,29 @@ def preview_remixes(self, url):
             if completed_count % 10 == 0 or completed_count == 1:
                 logger.info(f"Progress update: {completed_count}/{total_tracks} tracks processed")
             progress_recorder.set_progress(completed_count, total_tracks)
+                
+    except SoftTimeLimitExceeded:
+        # Task is being killed due to time limit - return partial results
+        logger.warning(
+            f"Task hit soft time limit after processing {completed_count}/{total_tracks} tracks. "
+            f"Returning partial results."
+        )
+        # Fill in remaining unprocessed tracks as failed
+        for i in range(total_tracks):
+            if i not in results_dict:
+                track = tracks[i]
+                results_dict[i] = {
+                    "original": {
+                        "name": track.get("original_name", "Unknown"),
+                        "artists": track.get("artists", []),
+                        "album_art": track.get("album_art"),
+                        "spotify_url": track.get("spotify_url")
+                    },
+                    "candidates": [],
+                    "best_match": None,
+                    "has_high_confidence": False
+                }
+                failed_count += 1
 
     logger.info(
         "preview_remixes complete: total_tracks=%s processed=%s failed=%s",
@@ -797,13 +819,17 @@ def preview_remixes(self, url):
     return preview_results
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, soft_time_limit=120, time_limit=150)
 def create_remix_playlist(self, playlist_name, selected_tracks, original_url):
     """
     Phase 2: Create the playlist with user-selected tracks on the central account.
     selected_tracks is a list of Spotify track IDs.
     
     The playlist is created and made public so users can access it.
+    
+    Time limits:
+    - soft_time_limit=120: Raises SoftTimeLimitExceeded after 2 minutes
+    - time_limit=150: Hard kill after 2.5 minutes if soft limit handling fails
     """
     from spotipy.exceptions import SpotifyException
     

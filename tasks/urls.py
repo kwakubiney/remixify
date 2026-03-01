@@ -14,4 +14,7 @@ urlpatterns = [
     # Stats & recent playlists
     path('recent-playlists/', views.recent_playlists, name="recent_playlists"),
     path('playlist-count/', views.playlist_count, name="playlist_count"),
+    
+    # Custom progress endpoint (uses explicit celery app reference)
+    path('task-progress/<str:task_id>/', views.task_progress, name="task_progress"),
 ]

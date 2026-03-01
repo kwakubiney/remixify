@@ -18,8 +18,8 @@ primary_region = 'iad'
 [processes]
   # Start web via start.sh so we can run migrations and collectstatic first
   web = '/app/start.sh'
-  # Celery worker process
-  celery = 'celery -A main worker -l info --concurrency=2'
+  # Celery worker process for I/O-bound workloads using thread pool
+  celery = 'celery -A main worker -l info --pool=threads --concurrency=4 --prefetch-multiplier=1'
 
 [http_service]
   internal_port = 8000

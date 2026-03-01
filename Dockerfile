@@ -22,6 +22,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Create logs directory for logging handler
+RUN mkdir -p /app/logs
+
 # Copy start script
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh

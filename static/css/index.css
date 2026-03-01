@@ -903,9 +903,14 @@
 .track-original {
     display: flex;
     flex-direction: row;
-    align-items: center;
+    flex-wrap: wrap;
+    align-items: flex-start;
     gap: 0.75rem;
     min-width: 0;
+}
+
+.track-original > .track-info {
+    flex: 1 1 0;
 }
 
 /* Track Art Wrapper */
@@ -1036,16 +1041,24 @@
 .manual-add {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.5rem;
-    margin-top: 0.5rem;
     padding: 0.75rem;
     background: var(--accent);
     border: 1px solid var(--border);
     border-radius: 0.75rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.track-original > .manual-add {
+    flex: 1 0 100%;
+    margin-top: 0.5rem;
 }
 
 .manual-add-input {
-    flex: 1;
+    flex: 1 1 240px;
+    min-width: 0;
     padding: 0.5rem;
     background: var(--background);
     border: 1px solid var(--border);
@@ -1098,6 +1111,7 @@
 }
 
 .manual-add-status {
+    flex: 1 0 100%;
     font-size: 0.75rem;
     color: var(--foreground-muted);
 }
@@ -1898,6 +1912,11 @@
 
 .status-close:hover {
     color: var(--foreground);
+}
+
+.status-banner-warning {
+    background: linear-gradient(90deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 152, 0, 0.1) 100%);
+    border-bottom: 1px solid rgba(255, 152, 0, 0.3);
 }
 
 @media (max-width: 640px) {

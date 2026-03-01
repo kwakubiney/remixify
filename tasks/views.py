@@ -8,6 +8,8 @@ from tasks.models import CreatedPlaylist
 from tasks.helpers import get_playlist_id
 from celery.result import AsyncResult
 from authentication.oauth import get_spotify_client
+from django.conf import settings
+from main.celery import app as celery_app
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +110,8 @@ def preview(request):
 @require_http_methods(["GET"])
 def get_preview_result(request, task_id):
     """Get the result of a preview task."""
-    result = AsyncResult(task_id)
+    # Use explicit app reference to ensure correct result backend
+    result = AsyncResult(task_id, app=celery_app)
     
     if result.ready():
         if result.successful():
@@ -159,7 +162,8 @@ def create_playlist(request):
 @require_http_methods(["GET"])
 def get_create_result(request, task_id):
     """Get the result of a playlist creation task."""
-    result = AsyncResult(task_id)
+    # Use explicit app reference to ensure correct result backend
+    result = AsyncResult(task_id, app=celery_app)
     
     if result.ready():
         if result.successful():
@@ -203,3 +207,18 @@ def playlist_count(request):
     from tasks.redis_utils import get_playlist_count
     count = get_playlist_count()
     return JsonResponse({"count": count})
+
+
+@require_http_methods(["GET"])
+def task_progress(request, task_id):
+    """
+    Custom progress endpoint that uses explicit celery app reference.
+    This ensures we're reading from the correct Redis backend.
+    """
+    from celery_progress.backend import Progress
+    
+    # Use explicit app reference to ensure correct result backend
+    result = AsyncResult(task_id, app=celery_app)
+    progress = Progress(result)
+    
+    return JsonResponse(progress.get_info())
